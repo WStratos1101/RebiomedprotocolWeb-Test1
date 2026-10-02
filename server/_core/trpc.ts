@@ -43,3 +43,25 @@ export const adminProcedure = t.procedure.use(
     });
   }),
 );
+
+const requireResearcher = t.middleware(async opts => {
+  const { ctx, next } = opts;
+
+  if (!ctx.user || !["admin", "researcher", "user"].includes(ctx.user.role)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Researcher access required" });
+  }
+
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+
+export const researcherProcedure = t.procedure.use(requireResearcher);
+
+const requireViewer = t.middleware(async opts => {
+  const { ctx, next } = opts;
+  if (!ctx.user || !["admin", "researcher", "viewer", "user"].includes(ctx.user.role)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Workspace viewer access required" });
+  }
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+
+export const viewerProcedure = t.procedure.use(requireViewer);
