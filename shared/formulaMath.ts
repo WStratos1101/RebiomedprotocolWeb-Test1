@@ -9,7 +9,7 @@ function tokenize(formula: string): Token[] {
     if (!formula.slice(index).trim()) break;
     pattern.lastIndex = index;
     const match = pattern.exec(formula);
-    if (!match) throw new Error(`Ký tự không hợp lệ ở vị trí ${index + 1}. Dùng số, tên biến ASCII, + - * / ^ và dấu ngoặc.`);
+    if (!match) throw new Error(`Ký tự không hợp lệ ở vị trí ${index + 1}. Dùng số, tên biến ASCII, sqrt(...), + - * / ^ và dấu ngoặc.`);
     const text = match[1];
     tokens.push({ text, kind: /^[A-Za-z_]/.test(text) ? "name" : /^[0-9.]/.test(text) ? "number" : "symbol" });
     index = pattern.lastIndex;
@@ -19,11 +19,12 @@ function tokenize(formula: string): Token[] {
   return tokens;
 }
 
+const isFunctionName = (name: string) => name === "sqrt";
+
 export function getFormulaVariables(formula: string): string[] {
   const tokens = tokenize(formula);
-  // Also parse with placeholder values: malformed formulas must never be saved.
-  evaluateTokens(tokens, Object.fromEntries(tokens.filter(token => token.kind === "name").map(token => [token.text, 1])), true);
-  return [...new Set(tokens.filter(token => token.kind === "name").map(token => token.text))];
+  evaluateTokens(tokens, Object.fromEntries(tokens.filter(token => token.kind === "name" && !isFunctionName(token.text)).map(token => [token.text, 1])), true);
+  return [...new Set(tokens.filter(token => token.kind === "name" && !isFunctionName(token.text)).map(token => token.text))];
 }
 
 function evaluateTokens(tokens: Token[], values: Record<string, number>, syntaxOnly = false): number {
@@ -66,6 +67,13 @@ function evaluateTokens(tokens: Token[], values: Record<string, number>, syntaxO
       return result;
     }
     if (token.kind === "number") return Number(token.text);
+    if (token.kind === "name" && token.text === "sqrt") {
+      if (!accept("(")) throw new Error("Hàm sqrt cần dạng sqrt(giá_trị).");
+      const result = expression();
+      if (!accept(")")) throw new Error("Thiếu dấu ngoặc đóng của sqrt.");
+      if (result < 0 && !syntaxOnly) throw new Error("Không thể lấy căn bậc hai của số âm.");
+      return Math.sqrt(result);
+    }
     if (token.kind === "name") {
       if (!Object.prototype.hasOwnProperty.call(values, token.text) || !Number.isFinite(values[token.text]))
         throw new Error(`Chưa nhập giá trị số hợp lệ cho ${token.text}.`);

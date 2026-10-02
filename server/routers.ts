@@ -27,12 +27,13 @@ export const appRouter = router({
         return { success: true } as const;
       }),
     createCalculator: publicProcedure
-      .input(z.object({ name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), category: z.enum(["Custom", "Hypoxia", "HighPressure"]).default("Custom"), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default("") }))
+      .input(z.object({ name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), category: z.enum(["Custom", "Hypoxia", "HighPressure"]).default("Custom"), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default(""), variables: z.array(z.object({ key: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), label: z.string().trim().min(1).max(120), unit: z.string().max(32) })).max(8).default([]) }))
       .mutation(async ({ input }) => {
         try {
           const variables = getFormulaVariables(input.formula);
           if (variables.length === 0 || variables.length > 8) throw new Error("Công thức cần từ 1 đến 8 biến.");
           if (Object.keys(input.inputUnits).some(variable => !variables.includes(variable))) throw new Error("Đơn vị đầu vào không khớp với biến trong công thức.");
+          if (input.variables.length !== variables.length || input.variables.some(item => !variables.includes(item.key)) || new Set(input.variables.map(item => item.key)).size !== input.variables.length) throw new Error("Các mục phải khớp với biến được dùng trong phương trình và không được trùng mã.");
         } catch (error) {
           throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Công thức không hợp lệ." });
         }
@@ -40,12 +41,13 @@ export const appRouter = router({
         return { success: true } as const;
       }),
     updateCalculator: publicProcedure
-      .input(z.object({ id: z.number().int().positive(), name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default("") }))
+      .input(z.object({ id: z.number().int().positive(), name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default(""), variables: z.array(z.object({ key: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), label: z.string().trim().min(1).max(120), unit: z.string().max(32) })).max(8).default([]) }))
       .mutation(async ({ input }) => {
         try {
           const variables = getFormulaVariables(input.formula);
           if (variables.length > 8) throw new Error("Công thức cần tối đa 8 biến.");
           if (Object.keys(input.inputUnits).some(variable => !variables.includes(variable))) throw new Error("Đơn vị đầu vào không khớp với biến trong công thức.");
+          if (input.variables.length && (input.variables.length !== variables.length || input.variables.some(item => !variables.includes(item.key)) || new Set(input.variables.map(item => item.key)).size !== input.variables.length)) throw new Error("Các mục phải khớp với biến được dùng trong phương trình và không được trùng mã.");
         } catch (error) {
           throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Công thức không hợp lệ." });
         }

@@ -46,3 +46,6 @@
 .brand-lockup .brand-name { min-width: 0; font-size: 16px; line-height: 1.1; letter-spacing: -.045em; }
 .brand-copy { min-width: 0; display: grid; gap: 3px; }
 .brand-copy small { color: #7f8b84; font: 8px/1.2 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .015em; white-space: nowrap; }
+.formula-item-editor{display:grid;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.formula-item-heading{display:grid;gap:3px}.formula-item-heading small{color:#7f8b84;font-size:11px;line-height:1.4}.formula-item-row{display:grid;grid-template-columns:1fr 1.45fr .8fr auto;gap:8px;align-items:center}.formula-item-row .icon-button{color:#a3554a}.formula-item-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.formula-item-actions select{min-height:38px;flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--white);color:var(--ink)}
+@media (max-width: 700px){.formula-item-row{grid-template-columns:1fr 1fr}.formula-item-row .icon-button{justify-self:end}}

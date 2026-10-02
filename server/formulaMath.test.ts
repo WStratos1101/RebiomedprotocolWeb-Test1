@@ -8,6 +8,11 @@ describe("user-defined arithmetic formulas", () => {
     expect(evaluateFormula("-(a + b)^2", { a: 2, b: 3 })).toBe(-25);
     expect(evaluateFormula("2^3^2", {})).toBe(512);
   });
+  it("supports square roots without treating sqrt as an input variable", () => {
+    expect(getFormulaVariables("sqrt(a^2 + b^2)")).toEqual(["a", "b"]);
+    expect(evaluateFormula("sqrt(a^2 + b^2)", { a: 3, b: 4 })).toBe(5);
+    expect(() => evaluateFormula("sqrt(-1)", {})).toThrow(/số âm/);
+  });
   it("accepts a structural formula even if placeholder inputs might divide by zero", () => {
     expect(getFormulaVariables("a/(b-b)")).toEqual(["a", "b"]);
     expect(() => evaluateFormula("a/(b-b)", { a: 1, b: 2 })).toThrow(/0/);

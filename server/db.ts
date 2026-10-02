@@ -230,17 +230,17 @@ export async function createSampleDraft(input: { name: string; description: stri
   await db.insert(samples).values({ code, name: input.name, groupName: "Bản nháp", status: "Bản nháp", description: input.description || "Mẫu mới được thêm vào kho Rebiomed Protocol.", properties: [{ label: "Trạng thái", value: "Chưa cập nhật" }], theory: input.description || "Bổ sung lý thuyết và dữ liệu tham chiếu cho mẫu này." });
 }
 
-export async function createCalculatorDraft(input: { name: string; formula: string; description: string; category?: "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string }) {
+export async function createCalculatorDraft(input: { name: string; formula: string; description: string; category?: "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-  await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "" }, active: 1 });
+  await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] }, active: 1 });
 }
 
-export async function updateCalculatorById(id: number, input: { name: string; formula: string; description: string; inputUnits?: Record<string, string>; outputUnit?: string }) {
+export async function updateCalculatorById(id: number, input: { name: string; formula: string; description: string; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(calculators).set({ name: input.name, formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "" } }).where(eq(calculators.id, id));
+  await db.update(calculators).set({ name: input.name, formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] } }).where(eq(calculators.id, id));
 }
 
 export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string }[] }) {
