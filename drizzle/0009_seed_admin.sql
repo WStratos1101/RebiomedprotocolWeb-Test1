@@ -1,0 +1,3 @@
+INSERT INTO `users` (`openId`, `username`, `name`, `email`, `loginMethod`, `role`, `approvalStatus`, `passwordHash`)
+VALUES ('84bc95b4e8e2bf9baa601088f5aa849bbe852b1372d10beadcc476bd4c123d1f', 'Wstratos', 'Wstratos', 'nqagb.work@gmail.com', 'email', 'admin', 'approved', 'scrypt$16384$8$1$6c30c577061d305536c49bb87062ff4c$130309f4866e3fd678f9aa9bc35782454b5270b4a69c1ea339e8b9cfdb7de0a0593a7c1ae7d77870f554aba5fb48cddc144a73ab1b535924e81390ce186d66ac')
+ON DUPLICATE KEY UPDATE `username` = VALUES(`username`), `name` = VALUES(`name`), `email` = VALUES(`email`), `loginMethod` = VALUES(`loginMethod`), `role` = 'admin', `approvalStatus` = 'approved', `passwordHash` = VALUES(`passwordHash`);

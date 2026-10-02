@@ -3,6 +3,7 @@ import { decimal, int, json, mysqlEnum, mysqlTable, text, timestamp, varchar } f
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
+  username: varchar("username", { length: 80 }).unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
@@ -50,6 +51,7 @@ export const calculators = mysqlTable("calculators", {
   formula: varchar("formula", { length: 160 }).notNull(),
   description: text("description").notNull(),
   config: json("config").notNull(),
+  status: varchar("status", { length: 32 }).default("Đã duyệt").notNull(),
   active: int("active").default(1).notNull(),
 });
 

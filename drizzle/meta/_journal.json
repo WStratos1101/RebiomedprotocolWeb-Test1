@@ -22,6 +22,55 @@
       "when": 1790926602191,
       "tag": "0002_condemned_lila_cheney",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1790939152326,
+      "tag": "0003_email_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1790939152328,
+      "tag": "0004_admin_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1790939195853,
+      "tag": "0005_usernames",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1790939195854,
+      "tag": "0006_username_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1790939195855,
+      "tag": "0007_normalize_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1790939195856,
+      "tag": "0008_calculator_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1790939195857,
+      "tag": "0009_seed_admin",
+      "breakpoints": true
     }
   ]
 }

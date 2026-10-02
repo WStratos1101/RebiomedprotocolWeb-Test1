@@ -65,11 +65,21 @@ export async function getUserByEmail(email: string) {
   return result[0];
 }
 
-export async function createEmailUser(input: { email: string; name: string; passwordHash: string }) {
+export async function getUserByUsernameOrEmail(identifier: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const normalized = identifier.trim();
+  const result = normalized.includes("@")
+    ? await db.select().from(users).where(eq(users.email, normalized.toLowerCase())).limit(1)
+    : await db.select().from(users).where(eq(users.username, normalized)).limit(1);
+  return result[0];
+}
+
+export async function createEmailUser(input: { username: string; email: string; name: string; passwordHash: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const email = input.email.toLowerCase();
-  await db.insert(users).values({ openId: createHash("sha256").update(email).digest("hex"), email, name: input.name, passwordHash: input.passwordHash, loginMethod: "email", role: "researcher", approvalStatus: "pending" });
+  await db.insert(users).values({ openId: createHash("sha256").update(`${input.username}:${email}`).digest("hex"), username: input.username, email, name: input.name, passwordHash: input.passwordHash, loginMethod: "email", role: "user", approvalStatus: "pending" });
 }
 
 export async function updateUserApproval(id: number, approvalStatus: "pending" | "approved" | "rejected") {
@@ -234,7 +244,7 @@ export async function createCalculatorDraft(input: { name: string; formula: stri
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-  await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] }, active: 1 });
+  await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] }, status: "Bản nháp", active: 1 });
 }
 
 export async function updateCalculatorById(id: number, input: { name: string; formula: string; description: string; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] }) {
@@ -271,11 +281,53 @@ export async function deleteCalculatorById(id: number) {
 export async function listTeamMembers() {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ id: users.id, name: users.name, email: users.email, role: users.role, approvalStatus: users.approvalStatus, loginMethod: users.loginMethod, lastSignedIn: users.lastSignedIn }).from(users).orderBy(asc(users.id));
+  return db.select({ id: users.id, username: users.username, name: users.name, email: users.email, role: users.role, approvalStatus: users.approvalStatus, loginMethod: users.loginMethod, lastSignedIn: users.lastSignedIn }).from(users).orderBy(asc(users.id));
 }
 
-export async function updateUserRole(id: number, role: "admin" | "researcher" | "viewer") {
+export async function updateUserRole(id: number, role: "admin" | "user") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await db.update(users).set({ role }).where(eq(users.id, id));
+}
+
+export async function getProtocolById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(protocols).where(eq(protocols.id, id)).limit(1))[0];
+}
+
+export async function getSampleById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(samples).where(eq(samples.id, id)).limit(1))[0];
+}
+
+export async function getCalculatorById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(calculators).where(eq(calculators.id, id)).limit(1))[0];
+}
+
+export async function setProtocolStatus(id: number, status: "Đã duyệt" | "Bản nháp") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(protocols).set({ status }).where(eq(protocols.id, id));
+}
+
+export async function setSampleStatus(id: number, status: "Đã duyệt" | "Bản nháp") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(samples).set({ status }).where(eq(samples.id, id));
+}
+
+export async function setCalculatorStatus(id: number, status: "Đã duyệt" | "Bản nháp") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(calculators).set({ status }).where(eq(calculators.id, id));
+}
+
+export async function deleteSampleById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.delete(samples).where(eq(samples.id, id));
 }
