@@ -14,7 +14,6 @@ import { ChemicalMixingView } from "@/components/ChemicalMixingView";
 import {
   Archive,
   ArrowLeft,
-  BarChart3,
   Beaker,
   BookOpen,
   Calculator,
@@ -38,15 +37,6 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 type View = "overview" | "protocols" | "samples" | "calculator" | "special" | "chemicals" | "chemicalStock" | "admin" | "adminAccounts" | "adminLogin" | "userLogin" | "userAccount" | "createProtocol";
 type Protocol = {
@@ -103,8 +93,6 @@ const calculators: CalculatorDefinition[] = [
   { id: "volume-to-take", name: "Tính thể tích cần lấy", category: "Cell seeding", formula: "N mong muốn / N tổng × V tổng", description: "Tính thể tích suspension cần hút để đạt số tế bào mong muốn.", color: "blue" },
 ];
 
-type ExperimentRun = { run: string; date: string; ct: number; efficiency: number };
-const experimentSeries: ExperimentRun[] = [];
 
 type TeamMember = { id: number; username?: string | null; name: string; email: string; role: "admin" | "user" | "researcher" | "viewer"; approvalStatus: "pending" | "approved" | "rejected"; loginMethod?: string | null; lastActive: string };
 
@@ -136,7 +124,6 @@ function UserAvatar({ name }: { name?: string | null }) {
 
 type ProtocolRecord = { id: number; title: string; category: string; tag: string; status: Protocol["status"]; version: string; updatedAt: Date | string; owner: string; summary: string; duration: string; steps: unknown; notes: unknown };
 type SampleRecord = { id: number; code: string; name: string; groupName: string; status: string; updatedAt: Date | string; description: string; properties: unknown; theory: string };
-type RunRecord = { runCode: string; runDate: string; ctMean: string | number; efficiency: string | number };
 
 function toProtocol(record: ProtocolRecord): Protocol {
   return { id: String(record.id), title: record.title, category: record.category, tag: record.tag, status: record.status, version: record.version, updatedAt: new Date(record.updatedAt).toLocaleDateString("vi-VN"), owner: record.owner, summary: record.summary, duration: record.duration, steps: Array.isArray(record.steps) ? record.steps as Protocol["steps"] : [], notes: Array.isArray(record.notes) ? record.notes as string[] : [] };
@@ -146,9 +133,6 @@ function toSample(record: SampleRecord): Sample {
   return { id: String(record.id), code: record.code, name: record.name, group: record.groupName, status: record.status, updatedAt: new Date(record.updatedAt).toLocaleDateString("vi-VN"), description: record.description, properties: Array.isArray(record.properties) ? record.properties as Sample["properties"] : [], theory: record.theory };
 }
 
-function toRun(record: RunRecord): ExperimentRun {
-  return { run: record.runCode, date: record.runDate, ct: Number(record.ctMean), efficiency: Number(record.efficiency) };
-}
 
 export default function Home() {
   const authQuery = trpc.auth.me.useQuery(undefined, { retry: false });
@@ -176,6 +160,7 @@ export default function Home() {
   const deleteProtocolMutation = trpc.content.deleteProtocol.useMutation({ onSuccess: async () => { await contentQuery.refetch(); toast.success("Đã xóa quy trình khỏi kho."); }, onError: error => toast.error(error.message) });
   const deleteSampleMutation = trpc.content.deleteSample.useMutation({ onSuccess: async () => { await contentQuery.refetch(); toast.success("Đã xóa mục lý thuyết."); }, onError: error => toast.error(error.message) });
   const [view, setView] = useState<View>("overview");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [specialCategory, setSpecialCategory] = useState<SpecialCategory>("Hypoxia");
   const [draftCategory, setDraftCategory] = useState<"Custom" | SpecialCategory>("Custom");
   const [mobileNav, setMobileNav] = useState(false);
@@ -207,7 +192,6 @@ export default function Home() {
   const [draftOutputUnit, setDraftOutputUnit] = useState("");
   const [draftItems, setDraftItems] = useState<FormulaItem[]>([]);
   const [draftSteps, setDraftSteps] = useState<ProtocolStep[]>([{ title: "", detail: "", time: "" }]);
-  const [runs, setRuns] = useState<ExperimentRun[]>(experimentSeries);
   const [calculatorTools, setCalculatorTools] = useState<CalculatorDefinition[]>(calculators);
   const volumeUnit = volumeUnits[selectedCalc] ?? "mL";
   const setVolumeUnit = (unit: VolumeUnit) => setVolumeUnits(current => ({ ...current, [selectedCalc]: unit }));
@@ -228,7 +212,6 @@ export default function Home() {
     if (!contentQuery.data) return;
     setProtocols((contentQuery.data.protocols as ProtocolRecord[]).map(toProtocol));
     setSamples((contentQuery.data.samples as SampleRecord[]).map(toSample));
-    setRuns((contentQuery.data.runs as RunRecord[]).map(toRun));
     const databaseCalculators = (contentQuery.data.calculators as CalculatorRecord[]).filter(item => item.active !== 0).map(item => ({ id: item.slug, dbId: item.id, config: item.config, name: item.name, category: item.category, formula: item.formula, description: item.description, status: item.status, color: item.category === "Cell counting" ? "teal" : item.category === "Cell seeding" ? "amber" : "blue" }));
     setCalculatorTools(databaseCalculators);
     if (!databaseCalculators.some(item => item.id === selectedCalc)) setSelectedCalc(databaseCalculators[0]?.id ?? "");
@@ -304,16 +287,13 @@ export default function Home() {
           {navItems.filter(item => item.id !== "adminAccounts" || isAdmin).map(item => { const Icon = item.icon; return <div key={item.id}><button className={`nav-item ${view === item.id || (item.id === "chemicals" && view === "chemicalStock") ? "active" : ""}`} onClick={() => { setView(item.id); setSelectedProtocol(null); setSelectedSample(null); setMobileNav(false); }}><Icon size={17} /><span>{item.label}</span>{item.id === "protocols" && <span className="nav-count">{protocols.length}</span>}</button>{item.id === "special" && <div className="special-subnav">{(["Hypoxia", "HighPressure"] as const).map(key => <button key={key} className={view === "special" && specialCategory === key ? "active" : ""} onClick={() => { setSpecialCategory(key); setView("special"); setMobileNav(false); }}>{SPECIAL_CATEGORY_LABEL[key]}</button>)}</div>}{item.id === "chemicals" && <div className="special-subnav chemical-subnav"><button className={view === "chemicals" ? "active" : ""} onClick={() => { setView("chemicals"); setMobileNav(false); }}>Hoá chất</button><button className={view === "chemicalStock" ? "active" : ""} onClick={() => { setView("chemicalStock"); setMobileNav(false); }}>Hoá chất stock</button></div>}</div>; })}
         </nav>
         <div className="sidebar-rule" />
-        <div className="nav-caption">Ghim nhanh</div>
-        <div className="pinned-list"><button onClick={() => openProtocol(protocols[0])}><span className="pin-line teal" />qPCR / DNA quantification</button><button onClick={() => openSample(samples[0])}><span className="pin-line amber" />HeLa cell lysate</button><button onClick={() => { setView("calculator"); setSelectedCalc("dilution"); }}><span className="pin-line blue" />Pha loãng nồng độ</button></div>
-        <div className="sidebar-bottom"><div className="sync-note"><span className="sync-icon"><Check size={12} /></span><span><strong>Đã đồng bộ</strong><small>{contentQuery.isFetching ? "Đang cập nhật…" : "Chỉnh sửa trực tiếp"}</small></span></div>{isAdmin ? <button className="user-row" onClick={() => logoutMutation.mutate()}><UserAvatar name={user?.name} /><span><strong>{user?.name || "Admin"}</strong><small>Admin · Đăng xuất</small></span><span className="panel-index">ADMIN</span></button> : user ? <button className="user-row" onClick={() => setView("userAccount")}><UserAvatar name={user.name} /><span><strong>{user.name || user.username || "User"}</strong><small>User · Tài khoản</small></span><span className="panel-index">USER</span></button> : <div className="account-entry-stack"><button className="user-row" onClick={() => setView("userLogin")}><UserAvatar name="User" /><span><strong>Đăng nhập User</strong><small>Tài khoản nghiên cứu</small></span><span className="panel-index">USER</span></button><button className="account-link" onClick={() => setView("adminLogin")}>Đăng nhập Admin</button></div>}</div>
+        <div className="sidebar-bottom"><div className="sync-note"><span className="sync-icon"><Check size={12} /></span><span><strong>Đã đồng bộ</strong><small>{contentQuery.isFetching ? "Đang cập nhật…" : "Chỉnh sửa trực tiếp"}</small></span></div></div>
       </aside>
       {mobileNav && <button className="mobile-overlay" onClick={() => setMobileNav(false)} aria-label="Đóng menu" />}
 
       <main className="main-canvas">
-        <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20} /></button><div className="breadcrumb"><span>Rebiomed Protocol</span><ChevronRight size={13} /><strong>{currentView?.label}</strong></div></div><div className="topbar-actions"><div className="global-search"><Search size={15} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm quy trình, mẫu, chủ đề…" /><kbd>⌘ K</kbd></div><div className="topbar-avatar"><UserAvatar name={user?.name} /></div></div></header>
+        <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20} /></button><div className="breadcrumb"><span>Rebiomed Protocol</span><ChevronRight size={13} /><strong>{currentView?.label}</strong></div></div><div className="topbar-actions"><div className="global-search"><Search size={15} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm quy trình, mẫu, chủ đề…" /><kbd>⌘ K</kbd></div><div className="account-menu"><button className="topbar-avatar" onClick={() => setAccountMenuOpen(current => !current)} aria-label="Mở tài khoản" aria-expanded={accountMenuOpen}><UserAvatar name={user?.name ?? (isAdmin ? "Admin" : "User")} /></button>{accountMenuOpen && <div className="account-popover"><div className="account-popover-head"><UserAvatar name={user?.name ?? (isAdmin ? "Admin" : "User")} /><div><strong>{user?.name || (isAdmin ? "Admin" : "Khách")}</strong><small>{user?.email || (isAdmin ? "Tài khoản quản trị" : "Chưa đăng nhập")}</small></div></div>{user ? <><button onClick={() => { setView(isAdmin ? "adminAccounts" : "userAccount"); setAccountMenuOpen(false); }}>Trang cá nhân</button><button className="account-logout" onClick={() => { logoutMutation.mutate(); setAccountMenuOpen(false); }}>Đăng xuất</button></> : <><button onClick={() => { setView("userLogin"); setAccountMenuOpen(false); }}>Đăng nhập User</button><button onClick={() => { setView("adminLogin"); setAccountMenuOpen(false); }}>Đăng nhập Admin</button></>}</div>}</div></div></header>
         <div className="page-wrap">
-          {view === "overview" && <Overview userName={user?.name} role={isAdmin ? "admin" : "user"} protocols={protocols} samples={samples} runs={runs} openProtocol={openProtocol} openSample={openSample} setView={setView} />}
           {view === "protocols" && <ProtocolsView protocols={filteredProtocols} selected={selectedProtocol} setSelected={setSelectedProtocol} openProtocol={openProtocol} onEdit={editProtocol} onDelete={handleDeleteProtocol} onCreate={() => startCreateProtocol()} canEdit={canEdit} canEditApproved={isAdmin} canDelete={isAdmin || selectedProtocol?.status === "Bản nháp"} search={search} />}
           {view === "samples" && <SamplesView samples={filteredSamples} selected={selectedSample} setSelected={setSelectedSample} openSample={openSample} onCreate={startCreateSample} onDelete={id => deleteSampleMutation.mutate({ id: Number(id) })} canManageApproved={isAdmin} search={search} />}
           {view === "calculator" && <CalculatorView tools={calculatorTools} onDesign={() => startCreateCalculator()} selectedCalc={selectedCalc} setSelectedCalc={setSelectedCalc} c1={c1} v1={v1} c2={c2} v2={v2} setC1={setC1} setV1={setV1} setC2={setC2} setV2={setV2} dilutionTarget={dilutionTarget} setDilutionTarget={setDilutionTarget} dilutionConcentrationMode={dilutionConcentrationMode} setDilutionConcentrationMode={setDilutionConcentrationMode} dilutionVolumeUnits={dilutionVolumeUnits} setDilutionVolumeUnits={setDilutionVolumeUnits} dilutionConcentrationUnits={dilutionConcentrationUnits} setDilutionConcentrationUnits={setDilutionConcentrationUnits} result={calculationResult} runCalculation={runCalculation} recent={recent} clearHistory={clearCalculationHistory} deleteCalculation={deleteCalculation} canCalculate={canEdit} volumeUnit={volumeUnit} setVolumeUnit={setVolumeUnit} cellUnit={cellUnit} setCellUnit={setCellUnit} dilutionMode={dilutionMode} setDilutionMode={setDilutionMode} dilutionFactorValue={dilutionFactorValue} setDilutionFactorValue={setDilutionFactorValue} dilutionInitialVolume={dilutionInitialVolume} setDilutionInitialVolume={setDilutionInitialVolume} dilutionAddedVolume={dilutionAddedVolume} setDilutionAddedVolume={setDilutionAddedVolume} />}
@@ -336,20 +316,12 @@ function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; t
   return <div className="page-intro"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{description}</p></div>{action}</div>;
 }
 
-function Overview({ userName, role, protocols, samples, runs, openProtocol, openSample, setView }: { userName?: string | null; role: "admin" | "user"; protocols: Protocol[]; samples: Sample[]; runs: ExperimentRun[]; openProtocol: (p: Protocol) => void; openSample: (s: Sample) => void; setView: (v: View) => void }) {
+function Overview({ userName, role, protocols, samples, openProtocol, openSample, setView }: { userName?: string | null; role: "admin" | "user"; protocols: Protocol[]; samples: Sample[]; openProtocol: (p: Protocol) => void; openSample: (s: Sample) => void; setView: (v: View) => void }) {
   return <>
     <PageIntro eyebrow={`02 OCTOBER 2026 · LAB CONTROL DESK · ${role.toUpperCase()}`} title={<>Chào {userName?.split(" ").slice(-1)[0] || "bạn"}, <em>mình bắt đầu nhé.</em></>} description="Mọi thứ đội ngũ cần để tái lập một thí nghiệm — ở đúng nơi, đúng phiên bản." action={<div className="intro-actions"><span className="last-sync"><span className="status-dot" /> Live sync</span><Button onClick={() => setView("calculator")} className="primary-cta"><Calculator size={16} /> Mở calculator</Button></div>} />
-    <section className="signal-strip"><div className="signal-main"><span className="signal-kicker">Signal / 01</span><h2>Kho đang vận hành ổn định</h2><p>{protocols.filter(protocol => protocol.status === "Đã duyệt").length} quy trình đã duyệt · {samples.length} mẫu có dữ liệu · {runs.length} run đã đồng bộ</p></div><div className="signal-stat"><strong>{protocols.length ? "98.6%" : "—"}</strong><span>compliance score</span></div><div className="signal-stat"><strong>{runs.length ? "14" : "—"} <small>{runs.length ? "min" : ""}</small></strong><span>tra cứu trung bình</span></div><div className="signal-visual"><span className="bar bar-1" /><span className="bar bar-2" /><span className="bar bar-3" /><span className="bar bar-4" /><span className="bar bar-5" /><span className="bar bar-6" /></div></section>
     <div className="overview-grid"><section className="content-panel focus-panel"><div className="panel-heading"><div><span className="panel-index">01 / FOCUS</span><h2>Quy trình dùng gần đây</h2></div><button className="text-button" onClick={() => setView("protocols")}>Xem tất cả <ArrowLeft size={14} className="flip-x" /></button></div><div className="protocol-list">{protocols.slice(0, 3).map((protocol, index) => <button className="protocol-row" key={protocol.id} onClick={() => openProtocol(protocol)}><span className="row-number">0{index + 1}</span><span className="row-main"><strong>{protocol.title}</strong><span>{protocol.category} <i>·</i> {protocol.duration}</span></span><span className={`status-pill ${protocol.status === "Đã duyệt" ? "approved" : "draft"}`}>{protocol.status}</span><ChevronRight size={16} /></button>)}</div></section><section className="content-panel sample-panel"><div className="panel-heading"><div><span className="panel-index">02 / SAMPLE INDEX</span><h2>Mẫu mới cập nhật</h2></div><button className="icon-button" onClick={() => setView("samples")}><MoreHorizontal size={18} /></button></div><div className="sample-stack">{samples.slice(0, 3).map(sample => <button className="sample-row" key={sample.id} onClick={() => openSample(sample)}><span className="sample-symbol"><Beaker size={16} /></span><span><strong>{sample.name}</strong><small>{sample.code} · {sample.updatedAt}</small></span><ChevronRight size={15} /></button>)}</div><div className="mini-theory"><Sparkles size={15} /><span><strong>Lab note</strong> — “Matrix matching” giúp giảm bias khi đọc assay màu.</span></div></section></div>
-    <ExperimentChart runs={runs} />
     <section className="quick-tools"><div className="quick-title"><span className="panel-index">03 / QUICK ACCESS</span><h2>Công cụ & tri thức</h2><p>Đi thẳng đến phần bạn cần trong ca làm việc.</p></div><button onClick={() => setView("calculator")} className="tool-card tool-teal"><span className="tool-icon"><Calculator size={19} /></span><strong>Pha loãng nồng độ</strong><small>C₁V₁ = C₂V₂</small><ChevronRight size={16} /></button><button onClick={() => setView("protocols")} className="tool-card tool-cream"><span className="tool-icon"><BookOpen size={19} /></span><strong>Protocol handbook</strong><small>Guides · notes · versions</small><ChevronRight size={16} /></button><button onClick={() => setView("samples")} className="tool-card tool-ink"><span className="tool-icon"><Archive size={19} /></span><strong>Sample theory</strong><small>Properties · references</small><ChevronRight size={16} /></button></section>
   </>;
-}
-
-function ExperimentChart({ runs }: { runs: ExperimentRun[] }) {
-  const averageCt = runs.length ? runs.reduce((sum, item) => sum + item.ct, 0) / runs.length : 0;
-  const averageEfficiency = runs.length ? runs.reduce((sum, item) => sum + item.efficiency, 0) / runs.length : 0;
-  return <section className="content-panel experiment-panel"><div className="panel-heading"><div><span className="panel-index">04 / EXPERIMENT SIGNAL · PROTECTED RUN DATA</span><h2>Độ ổn định qPCR trong các run gần nhất</h2></div><div className="chart-legend"><span><i className="legend-dot teal" /> Ct mean</span><span><i className="legend-dot amber" /> Efficiency %</span></div></div><div className="chart-summary"><div><strong>{averageCt ? averageCt.toFixed(2) : "—"}</strong><span>Ct trung bình</span></div><div><strong>{averageEfficiency ? `${averageEfficiency.toFixed(1)}%` : "—"}</strong><span>efficiency trung bình</span></div><div className="chart-caption"><BarChart3 size={16} /> {runs.length ? `${runs.length} run đã đồng bộ từ MySQL` : "Chưa có run được đồng bộ"}</div></div>{runs.length ? <div className="chart-frame"><ResponsiveContainer width="100%" height={190}><AreaChart data={runs} margin={{ top: 12, right: 8, left: -20, bottom: 0 }}><defs><linearGradient id="ctFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#0d5c63" stopOpacity={0.22} /><stop offset="100%" stopColor="#0d5c63" stopOpacity={0.02} /></linearGradient><linearGradient id="effFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c9822b" stopOpacity={0.18} /><stop offset="100%" stopColor="#c9822b" stopOpacity={0.01} /></linearGradient></defs><CartesianGrid stroke="#e0e4dd" strokeDasharray="3 3" vertical={false} /><XAxis dataKey="date" tick={{ fill: "#8b958e", fontSize: 10 }} tickLine={false} axisLine={false} /><YAxis yAxisId="ct" domain={[22, 26]} tick={{ fill: "#8b958e", fontSize: 10 }} tickLine={false} axisLine={false} /><YAxis yAxisId="eff" orientation="right" domain={[88, 102]} hide /><Tooltip contentStyle={{ border: "1px solid #d9ddd5", borderRadius: 7, background: "#fffefa", fontSize: 11 }} labelStyle={{ color: "#18221f", fontWeight: 600 }} /><Area yAxisId="ct" type="monotone" dataKey="ct" name="Ct mean" stroke="#0d5c63" strokeWidth={2} fill="url(#ctFill)" dot={{ r: 3, fill: "#0d5c63", strokeWidth: 0 }} /><Area yAxisId="eff" type="monotone" dataKey="efficiency" name="Efficiency %" stroke="#c9822b" strokeWidth={2} fill="url(#effFill)" dot={{ r: 3, fill: "#c9822b", strokeWidth: 0 }} /></AreaChart></ResponsiveContainer></div> : <div className="empty-state"><BarChart3 size={24} /><h3>Chưa có run dữ liệu</h3><p>Khi import run vào kho, biểu đồ sẽ cập nhật tại đây.</p></div>}<div className="chart-footer"><span>Source: protected experimentRuns · chỉ người dùng được cấp quyền mới thấy dữ liệu</span><span className="chart-status"><span className="status-dot" /> {runs.length ? "Within review range" : "Awaiting run"}</span></div></section>;
 }
 
 function ProtocolsView({ protocols, selected, setSelected, openProtocol, onEdit, onDelete, onCreate, canEdit, canEditApproved, canDelete, search }: { protocols: Protocol[]; selected: Protocol | null; setSelected: (p: Protocol | null) => void; openProtocol: (p: Protocol) => void; onEdit: (protocol: Protocol) => void; onDelete: (id: string) => void; onCreate: () => void; canEdit: boolean; canEditApproved: boolean; canDelete: boolean; search: string }) {
