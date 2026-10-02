@@ -170,6 +170,9 @@ const seedCalculators = [
   { slug: "dilution", name: "Pha loãng nồng độ", category: "Dung dịch", formula: "C₁V₁ = C₂V₂", description: "Tính thể tích stock cần lấy hoặc nồng độ sau pha loãng.", config: { inputs: ["c1", "v1", "c2", "v2"], units: { c1: "mg/mL", v1: "µL", c2: "mg/mL", v2: "µL" } } },
   { slug: "viability", name: "Cell viability", category: "Cell culture", formula: "Sống / Tổng × 100", description: "Tính tỷ lệ sống từ số tế bào sống và tổng số tế bào.", config: { inputs: ["live", "total"], units: { live: "cells", total: "cells" } } },
   { slug: "molarity", name: "Molarity → mass", category: "Hóa chất", formula: "m = C × V × MW", description: "Quy đổi nồng độ mol sang khối lượng chất cần cân.", config: { inputs: ["concentration", "volume", "molecularWeight"], units: { concentration: "M", volume: "L", molecularWeight: "g/mol" } } },
+  { slug: "manual-cell-count", name: "Đếm tế bào bằng buồng đếm thủ công", category: "Cell counting", formula: "(TB trung bình / ô) × hệ số pha loãng × 10⁴", description: "Tính mật độ tế bào từ số tế bào đếm được trong buồng đếm thủ công.", config: { inputs: ["averageCells", "countedSquares", "dilutionFactor"], units: { averageCells: "cells", countedSquares: "ô", dilutionFactor: "×" } } },
+  { slug: "cells-needed", name: "Tính số lượng tế bào cần", category: "Cell seeding", formula: "Mật độ mục tiêu × số đơn vị × thể tích / đơn vị", description: "Tính tổng số tế bào cần chuẩn bị cho các giếng hoặc đơn vị nuôi cấy.", config: { inputs: ["targetDensity", "unitCount", "volumePerUnit"], units: { targetDensity: "cells/mL", unitCount: "đơn vị", volumePerUnit: "mL" } } },
+  { slug: "volume-to-take", name: "Tính thể tích cần lấy", category: "Cell seeding", formula: "V lấy = N mong muốn / N tổng × V tổng", description: "Tính thể tích cần hút từ suspension hiện có để thu được số tế bào mong muốn.", config: { inputs: ["desiredCells", "totalCells", "totalVolume"], units: { desiredCells: "cells", totalCells: "cells", totalVolume: "mL" } } },
 ];
 
 const seedRuns = [
@@ -193,6 +196,10 @@ export async function ensureLabSeed() {
     const perfusion = await db.select({ id: protocols.id }).from(protocols).where(eq(protocols.slug, "perfusion")).limit(1);
     if (perfusion.length === 0) await db.insert(protocols).values(seedProtocols.find(item => item.slug === "perfusion")!);
   }
+  const existingCalculators = await db.select({ slug: calculators.slug }).from(calculators);
+  const existingCalculatorSlugs = new Set(existingCalculators.map(item => item.slug));
+  const missingCalculators = seedCalculators.filter(item => !existingCalculatorSlugs.has(item.slug));
+  if (missingCalculators.length > 0) await db.insert(calculators).values(missingCalculators);
 }
 
 export async function getLabContent() {
@@ -208,11 +215,11 @@ export async function getLabContent() {
   return { protocols: protocolRows, samples: sampleRows, calculators: calculatorRows, runs: runRows };
 }
 
-export async function createProtocolDraft(input: { title: string; summary: string; owner: string }) {
+export async function createProtocolDraft(input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-  await db.insert(protocols).values({ slug, title: input.title, category: "Custom", tag: "New protocol", status: "Bản nháp", version: "v0.1", owner: input.owner, summary: input.summary || "Nội dung mới được thêm vào kho LabVault.", duration: "Chưa cập nhật", steps: [{ title: "Bắt đầu biên soạn", detail: input.summary || "Thêm hướng dẫn chi tiết cho bước này.", time: "—" }], notes: ["Bản nháp — cần review trước khi sử dụng trong thực nghiệm."] });
+  await db.insert(protocols).values({ slug, title: input.title, category: "Custom", tag: "New protocol", status: "Bản nháp", version: "v0.1", owner: input.owner, summary: input.summary || "Nội dung mới được thêm vào kho LabVault.", duration: "Chưa cập nhật", steps: input.steps?.length ? input.steps : [{ title: "Bắt đầu biên soạn", detail: input.summary || "Thêm hướng dẫn chi tiết cho bước này.", time: "—" }], notes: ["Bản nháp — cần review trước khi sử dụng trong thực nghiệm."] });
 }
 
 export async function createSampleDraft(input: { name: string; description: string }) {
@@ -222,10 +229,17 @@ export async function createSampleDraft(input: { name: string; description: stri
   await db.insert(samples).values({ code, name: input.name, groupName: "Bản nháp", status: "Bản nháp", description: input.description || "Mẫu mới được thêm vào kho LabVault.", properties: [{ label: "Trạng thái", value: "Chưa cập nhật" }], theory: input.description || "Bổ sung lý thuyết và dữ liệu tham chiếu cho mẫu này." });
 }
 
-export async function updateProtocolDraft(id: number, input: { title: string; summary: string }) {
+export async function createCalculatorDraft(input: { name: string; formula: string; description: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(protocols).set({ title: input.title, summary: input.summary }).where(eq(protocols.id, id));
+  const slug = `${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
+  await db.insert(calculators).values({ slug, name: input.name, category: "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong LabVault.", config: { inputs: ["valueA", "valueB"], units: { valueA: "", valueB: "" } }, active: 1 });
+}
+
+export async function updateProtocolDraft(id: number, input: { title: string; summary: string; steps?: { title: string; detail: string; time: string }[] }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(protocols).set({ title: input.title, summary: input.summary, ...(input.steps ? { steps: input.steps } : {}) }).where(eq(protocols.id, id));
 }
 
 export async function updateSampleDraft(id: number, input: { name: string; description: string }) {
