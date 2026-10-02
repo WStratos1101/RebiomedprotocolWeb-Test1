@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { HypoxiaCalculator } from "@/components/HypoxiaCalculator";
 import { CustomCalculator } from "@/components/CustomCalculator";
 import { SpecialExperimentsView, SPECIAL_CATEGORY_LABEL, type SpecialCategory } from "@/components/SpecialExperimentsView";
+import { ChemicalMixingView } from "@/components/ChemicalMixingView";
 import {
   Archive,
   ArrowLeft,
@@ -47,7 +48,7 @@ import {
   YAxis,
 } from "recharts";
 
-type View = "overview" | "protocols" | "samples" | "calculator" | "special" | "admin" | "adminAccounts" | "adminLogin" | "createProtocol";
+type View = "overview" | "protocols" | "samples" | "calculator" | "special" | "chemicals" | "chemicalStock" | "admin" | "adminAccounts" | "adminLogin" | "createProtocol";
 type Protocol = {
   id: string;
   title: string;
@@ -114,6 +115,7 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "protocols", label: "Quy trình", icon: ClipboardList },
   { id: "samples", label: "Mẫu & lý thuyết", icon: FlaskConical },
   { id: "calculator", label: "Công cụ tính", icon: Calculator },
+  { id: "chemicals", label: "Pha hoá chất", icon: FlaskConical },
   { id: "special", label: "Thí nghiệm điều kiện đặc trưng", icon: Beaker },
   { id: "admin", label: "Quản lý nội dung", icon: Settings2 },
   { id: "adminAccounts", label: "Quản trị Admin", icon: ShieldCheck },
@@ -298,7 +300,7 @@ export default function Home() {
         </div>
         <div className="nav-caption">Workspace</div>
         <nav className="main-nav">
-          {navItems.filter(item => item.id !== "adminAccounts" || isAdmin).map(item => { const Icon = item.icon; return <div key={item.id}><button className={`nav-item ${view === item.id ? "active" : ""}`} onClick={() => { setView(item.id); setSelectedProtocol(null); setSelectedSample(null); setMobileNav(false); }}><Icon size={17} /><span>{item.label}</span>{item.id === "protocols" && <span className="nav-count">{protocols.length}</span>}</button>{item.id === "special" && <div className="special-subnav">{(["Hypoxia", "HighPressure"] as const).map(key => <button key={key} className={view === "special" && specialCategory === key ? "active" : ""} onClick={() => { setSpecialCategory(key); setView("special"); setMobileNav(false); }}>{SPECIAL_CATEGORY_LABEL[key]}</button>)}</div>}</div>; })}
+          {navItems.filter(item => item.id !== "adminAccounts" || isAdmin).map(item => { const Icon = item.icon; return <div key={item.id}><button className={`nav-item ${view === item.id || (item.id === "chemicals" && view === "chemicalStock") ? "active" : ""}`} onClick={() => { setView(item.id); setSelectedProtocol(null); setSelectedSample(null); setMobileNav(false); }}><Icon size={17} /><span>{item.label}</span>{item.id === "protocols" && <span className="nav-count">{protocols.length}</span>}</button>{item.id === "special" && <div className="special-subnav">{(["Hypoxia", "HighPressure"] as const).map(key => <button key={key} className={view === "special" && specialCategory === key ? "active" : ""} onClick={() => { setSpecialCategory(key); setView("special"); setMobileNav(false); }}>{SPECIAL_CATEGORY_LABEL[key]}</button>)}</div>}{item.id === "chemicals" && <div className="special-subnav chemical-subnav"><button className={view === "chemicals" ? "active" : ""} onClick={() => { setView("chemicals"); setMobileNav(false); }}>Hoá chất</button><button className={view === "chemicalStock" ? "active" : ""} onClick={() => { setView("chemicalStock"); setMobileNav(false); }}>Hoá chất stock</button></div>}</div>; })}
         </nav>
         <div className="sidebar-rule" />
         <div className="nav-caption">Ghim nhanh</div>
@@ -314,6 +316,8 @@ export default function Home() {
           {view === "protocols" && <ProtocolsView protocols={filteredProtocols} selected={selectedProtocol} setSelected={setSelectedProtocol} openProtocol={openProtocol} onEdit={editProtocol} onDelete={handleDeleteProtocol} onCreate={() => startCreateProtocol()} canEdit={canEdit} canEditApproved={isAdmin} canDelete={isAdmin || selectedProtocol?.status === "Bản nháp"} search={search} />}
           {view === "samples" && <SamplesView samples={filteredSamples} selected={selectedSample} setSelected={setSelectedSample} openSample={openSample} onCreate={startCreateSample} onDelete={id => deleteSampleMutation.mutate({ id: Number(id) })} canManageApproved={isAdmin} search={search} />}
           {view === "calculator" && <CalculatorView tools={calculatorTools} onDesign={() => startCreateCalculator()} selectedCalc={selectedCalc} setSelectedCalc={setSelectedCalc} c1={c1} v1={v1} c2={c2} v2={v2} setC1={setC1} setV1={setV1} setC2={setC2} setV2={setV2} dilutionTarget={dilutionTarget} setDilutionTarget={setDilutionTarget} dilutionConcentrationMode={dilutionConcentrationMode} setDilutionConcentrationMode={setDilutionConcentrationMode} dilutionVolumeUnits={dilutionVolumeUnits} setDilutionVolumeUnits={setDilutionVolumeUnits} dilutionConcentrationUnits={dilutionConcentrationUnits} setDilutionConcentrationUnits={setDilutionConcentrationUnits} result={calculationResult} runCalculation={runCalculation} recent={recent} clearHistory={clearCalculationHistory} deleteCalculation={deleteCalculation} canCalculate={canEdit} volumeUnit={volumeUnit} setVolumeUnit={setVolumeUnit} cellUnit={cellUnit} setCellUnit={setCellUnit} dilutionMode={dilutionMode} setDilutionMode={setDilutionMode} dilutionFactorValue={dilutionFactorValue} setDilutionFactorValue={setDilutionFactorValue} dilutionInitialVolume={dilutionInitialVolume} setDilutionInitialVolume={setDilutionInitialVolume} dilutionAddedVolume={dilutionAddedVolume} setDilutionAddedVolume={setDilutionAddedVolume} />}
+          {view === "chemicals" && <ChemicalMixingView initialTab="chemicals" />}
+          {view === "chemicalStock" && <ChemicalMixingView initialTab="stock" />}
           {view === "special" && <SpecialExperimentsView protocols={protocols} tools={calculatorTools} category={specialCategory} setCategory={setSpecialCategory} openProtocol={protocol => { const full = protocols.find(item => item.id === protocol.id); if (full) openProtocol(full); }} openTool={id => { setSelectedCalc(id); setView("calculator"); }} createProtocol={startCreateProtocol} createTool={startCreateCalculator} />}
           {view === "admin" && <AdminView isAdmin={isAdmin} protocols={protocols} samples={samples} draftOwner={draftOwner} setDraftOwner={setDraftOwner} calculators={calculatorTools} onEditCalculator={handleEditCalculator} onDeleteCalculator={handleDeleteCalculator} onCreateProtocol={() => startCreateProtocol()} draftType={draftType} setDraftType={setDraftType} draftTitle={draftTitle} setDraftTitle={setDraftTitle} draftBody={draftBody} setDraftBody={setDraftBody} draftFormula={draftFormula} setDraftFormula={setDraftFormula} draftInputUnits={draftInputUnits} setDraftInputUnits={setDraftInputUnits} draftItems={draftItems} setDraftItems={setDraftItems} draftOutputUnit={draftOutputUnit} setDraftOutputUnit={setDraftOutputUnit} onSave={handleSaveDraft} draftCategory={draftCategory} setDraftCategory={setDraftCategory} onDeleteProtocol={handleDeleteProtocol} onEditSample={editSample} />}
           {view === "adminLogin" && <AdminLoginView onSuccess={async () => { await authQuery.refetch(); setView("adminAccounts"); }} />}
