@@ -237,6 +237,12 @@ export async function createCalculatorDraft(input: { name: string; formula: stri
   await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "" }, active: 1 });
 }
 
+export async function updateCalculatorById(id: number, input: { name: string; formula: string; description: string; inputUnits?: Record<string, string>; outputUnit?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(calculators).set({ name: input.name, formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "" } }).where(eq(calculators.id, id));
+}
+
 export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

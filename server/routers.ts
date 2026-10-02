@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { getFormulaVariables } from "@shared/formulaMath";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
-import { createCalculatorDraft, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, getLabContent, listTeamMembers, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
+import { createCalculatorDraft, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, getLabContent, listTeamMembers, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 
@@ -37,6 +37,19 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Công thức không hợp lệ." });
         }
         await createCalculatorDraft(input);
+        return { success: true } as const;
+      }),
+    updateCalculator: publicProcedure
+      .input(z.object({ id: z.number().int().positive(), name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default("") }))
+      .mutation(async ({ input }) => {
+        try {
+          const variables = getFormulaVariables(input.formula);
+          if (variables.length > 8) throw new Error("Công thức cần tối đa 8 biến.");
+          if (Object.keys(input.inputUnits).some(variable => !variables.includes(variable))) throw new Error("Đơn vị đầu vào không khớp với biến trong công thức.");
+        } catch (error) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Công thức không hợp lệ." });
+        }
+        await updateCalculatorById(input.id, input);
         return { success: true } as const;
       }),
     updateDraft: publicProcedure
