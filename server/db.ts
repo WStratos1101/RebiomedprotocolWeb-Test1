@@ -92,6 +92,19 @@ export async function createEmailUser(input: { username: string; email: string; 
   await db.insert(users).values({ openId, username: input.username, email, name: input.name, passwordHash: hashPassword(input.password), passwordVault: encryptPasswordForAccount(input.password, openId), loginMethod: "email", role: "user", approvalStatus: "pending" });
 }
 
+export async function updateUserProfile(id: number, input: { email: string; password?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const values: Record<string, unknown> = { email: input.email.toLowerCase() };
+  if (input.password) {
+    const target = await getUserById(id);
+    if (!target) throw new Error("Không tìm thấy tài khoản.");
+    values.passwordHash = hashPassword(input.password);
+    values.passwordVault = encryptPasswordForAccount(input.password, target.openId);
+  }
+  await db.update(users).set(values).where(eq(users.id, id));
+}
+
 export async function updateUserApproval(id: number, approvalStatus: "pending" | "approved" | "rejected") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

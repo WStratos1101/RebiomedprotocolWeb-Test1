@@ -5,7 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { verifyPassword } from "./_core/password";
 import { decryptPasswordForAccount } from "./_core/passwordVault";
-import { createCalculatorDraft, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserById, getUserByUsernameOrEmail, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
+import { createCalculatorDraft, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserByEmail, getUserById, getUserByUsernameOrEmail, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserProfile, updateUserRole } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
@@ -22,6 +22,13 @@ export const appRouter = router({
       ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
       return { id: user.id, username: user.username, name: user.name, email: user.email, role: "admin" as const };
     }),
+    userLogin: publicProcedure.input(z.object({ identifier: z.string().trim().min(1).max(320), password: z.string().min(1).max(200) })).mutation(async ({ input, ctx }) => {
+      const user = await getUserByUsernameOrEmail(input.identifier);
+      if (!user || user.role === "admin" || user.approvalStatus !== "approved" || !verifyPassword(input.password, user.passwordHash)) throw new TRPCError({ code: "UNAUTHORIZED", message: "Tài khoản chưa được duyệt hoặc thông tin đăng nhập không đúng." });
+      const token = await sdk.createSessionToken(user.openId, { name: user.name ?? user.username ?? "User" });
+      ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
+      return { id: user.id, username: user.username, name: user.name, email: user.email, role: "user" as const };
+    }),
     register: publicProcedure.input(z.object({ username: z.string().trim().min(3).max(80).regex(/^[A-Za-z0-9_.-]+$/), name: z.string().trim().min(1).max(160), email: z.string().trim().email().max(320), password: z.string().min(8).max(200) })).mutation(async ({ input }) => {
       if (!process.env.REBIOMED_PASSWORD_VAULT_KEY) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Chức năng đăng ký đang được cấu hình." });
       try { await createEmailUser(input); } catch (error) {
@@ -29,6 +36,15 @@ export const appRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Không thể tạo tài khoản lúc này." });
       }
       return { success: true as const, message: "Tài khoản đã được đăng ký với quyền User." };
+    }),
+    updateProfile: publicProcedure.input(z.object({ email: z.string().trim().email().max(320), currentPassword: z.string().min(1).max(200), newPassword: z.string().min(8).max(200).optional() })).mutation(async ({ input, ctx }) => {
+      if (!ctx.user || ctx.user.role === "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ User mới có thể chỉnh sửa hồ sơ ở mục này." });
+      if (!verifyPassword(input.currentPassword, ctx.user.passwordHash)) throw new TRPCError({ code: "UNAUTHORIZED", message: "Mật khẩu hiện tại không đúng." });
+      const normalizedEmail = input.email.toLowerCase();
+      const duplicate = await getUserByEmail(normalizedEmail);
+      if (duplicate && duplicate.id !== ctx.user.id) throw new TRPCError({ code: "CONFLICT", message: "Email này đã được sử dụng." });
+      await updateUserProfile(ctx.user.id, { email: normalizedEmail, password: input.newPassword });
+      return { success: true as const, email: normalizedEmail };
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
