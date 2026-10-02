@@ -131,6 +131,33 @@ const seedProtocols = [
     ],
     notes: ["Đếm trong vòng 3 phút sau khi trộn thuốc nhuộm.", "Mẫu đạt nếu viability ≥ 85% trước khi split."],
   },
+  {
+    slug: "perfusion",
+    title: "Perfusion",
+    category: "Cell isolation",
+    tag: "Liver / NPC / Hepa",
+    status: "Bản nháp" as const,
+    version: "v0.1",
+    owner: "Lab editor",
+    summary: "Quy trình phân tách tế bào từ gan, thu NPC và Hepa qua bước ly tâm và gradient Nycodenz.",
+    duration: "Khoảng 1–2 giờ",
+    steps: [
+      { title: "Cân gan", detail: "Ghi lại khối lượng gan trước khi xử lý.", time: "—" },
+      { title: "Xé và ngâm gan", detail: "Đổ gan ra đĩa Petri, xé gan nhuyễn và ngâm 3–4 phút.", time: "3–4 phút" },
+      { title: "Lắc tan gan", detail: "Hút hỗn hợp vào bình lắc; lắc bình trong tủ ấm 10–20 phút để tan gan.", time: "10–20 phút" },
+      { title: "Lọc dịch gan lần 1", detail: "Lọc dịch gan vào 2 falcon 50 mL. Thêm 60 µL DNase I và bổ sung GBSSB tới 50 mL.", time: "—" },
+      { title: "Đếm lần 1 và ly tâm nhẹ", detail: "Lấy 10 µL để đếm 1. Ly tâm 40 g trong 3 phút ở 4°C. Tách dịch tế bào (NPC) và cặn tế bào (thu Hepa).", time: "3 phút · 4°C" },
+      { title: "Rửa NPC lần 1", detail: "Thêm 60 µL DNase I vào dịch tế bào, huyền phù, bổ sung GBSSB tới 50 mL. Lấy 10 µL đếm 1. Ly tâm 580 g trong 10 phút ở 4°C.", time: "10 phút · 4°C" },
+      { title: "Rửa và gộp mẫu", detail: "Hút bớt dịch còn khoảng 10 mL; gộp 2 falcon 50 mL. Bổ sung GBSSB tới 50 mL cùng DNase I và huyền phù.", time: "—" },
+      { title: "Đếm lần 2 và rửa", detail: "Lấy 10 µL đếm 2. Ly tâm 580 g trong 10 phút ở 4°C. Hút bớt dịch còn khoảng 10 mL, bổ sung 10 mL GBSSB và huyền phù.", time: "10 phút · 4°C" },
+      { title: "Đếm lần 3 và chuẩn bị gradient", detail: "Lấy 10 µL đếm 3. Thêm 60 µL DNase I vào dịch tế bào, huyền phù. Pha Nycodenz 9,6% rồi cho từ từ Nycodenz vào dịch tế bào.", time: "—" },
+      { title: "Phân lớp Nycodenz", detail: "Load 2 mL GBSSB. Ly tâm 1800 g trong 18 phút ở 4°C.", time: "18 phút · 4°C" },
+      { title: "Thu phân lớp HSC", detail: "Hút phân lớp có HSC. Bổ sung GBSSB tới 14 mL và huyền phù. Lấy 10 µL đếm 4.", time: "—" },
+      { title: "Rửa và chuẩn bị seed", detail: "Ly tâm 580 g trong 10 phút ở 4°C. Hút bỏ dịch, giữ cặn. Bổ sung 1 mL môi trường và huyền phù.", time: "10 phút · 4°C" },
+      { title: "Đếm và seed", detail: "Lấy 10 µL đếm 4, sau đó seed tế bào theo mật độ thí nghiệm đã được phê duyệt.", time: "—" },
+    ],
+    notes: ["Giữ mẫu lạnh ở các bước xử lý ngoài tủ ấm.", "Kiểm tra đúng nồng độ DNase I và Nycodenz trước khi bắt đầu.", "Ghi rõ số lần đếm tế bào và phân lớp thu được vào phiếu thí nghiệm.", "Quy trình đang ở trạng thái bản nháp; cần review trước khi dùng chính thức."],
+  },
 ];
 
 const seedSamples = [
@@ -157,11 +184,15 @@ export async function ensureLabSeed() {
   const db = await getDb();
   if (!db) return;
   const existing = await db.select({ id: protocols.id }).from(protocols).limit(1);
-  if (existing.length > 0) return;
-  await db.insert(protocols).values(seedProtocols);
-  await db.insert(samples).values(seedSamples);
-  await db.insert(calculators).values(seedCalculators);
-  await db.insert(experimentRuns).values(seedRuns);
+  if (existing.length === 0) {
+    await db.insert(protocols).values(seedProtocols);
+    await db.insert(samples).values(seedSamples);
+    await db.insert(calculators).values(seedCalculators);
+    await db.insert(experimentRuns).values(seedRuns);
+  } else {
+    const perfusion = await db.select({ id: protocols.id }).from(protocols).where(eq(protocols.slug, "perfusion")).limit(1);
+    if (perfusion.length === 0) await db.insert(protocols).values(seedProtocols.find(item => item.slug === "perfusion")!);
+  }
 }
 
 export async function getLabContent() {
