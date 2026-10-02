@@ -236,10 +236,10 @@ export async function createCalculatorDraft(input: { name: string; formula: stri
   await db.insert(calculators).values({ slug, name: input.name, category: "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong LabVault.", config: { inputs: ["valueA", "valueB"], units: { valueA: "", valueB: "" } }, active: 1 });
 }
 
-export async function updateProtocolDraft(id: number, input: { title: string; summary: string; steps?: { title: string; detail: string; time: string }[] }) {
+export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(protocols).set({ title: input.title, summary: input.summary, ...(input.steps ? { steps: input.steps } : {}) }).where(eq(protocols.id, id));
+  await db.update(protocols).set({ title: input.title, summary: input.summary, owner: input.owner, ...(input.steps ? { steps: input.steps } : {}) }).where(eq(protocols.id, id));
 }
 
 export async function updateSampleDraft(id: number, input: { name: string; description: string }) {
@@ -252,6 +252,13 @@ export async function deleteProtocolById(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await db.delete(protocols).where(eq(protocols.id, id));
+}
+
+export async function deleteCalculatorById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  // Keep the seed slug as a tombstone so ensureLabSeed does not recreate it.
+  await db.update(calculators).set({ active: 0 }).where(eq(calculators.id, id));
 }
 
 export async function listTeamMembers() {
