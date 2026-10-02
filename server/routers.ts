@@ -4,7 +4,7 @@ import { getFormulaVariables } from "@shared/formulaMath";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { hashPassword, verifyPassword } from "./_core/password";
-import { createCalculatorDraft, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserById, getUserByUsernameOrEmail, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
+import { createCalculatorDraft, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserById, getUserByUsernameOrEmail, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, setUserPasswordHash, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
@@ -142,13 +142,20 @@ export const appRouter = router({
       await deleteUserById(input.id);
       return { success: true } as const;
     }),
+    resetPassword: adminProcedure.input(z.object({ id: z.number().int().positive(), password: z.string().min(8).max(200) })).mutation(async ({ input, ctx }) => {
+      if (ctx.user.username?.toLowerCase() !== "wstratos") throw new TRPCError({ code: "FORBIDDEN", message: "Không có quyền thực hiện thao tác này." });
+      const target = await getUserById(input.id);
+      if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
+      await setUserPasswordHash(input.id, hashPassword(input.password));
+      return { success: true } as const;
+    }),
     updateRole: adminProcedure
       .input(z.object({ id: z.number().int().positive(), role: z.enum(["admin", "user"]) }))
       .mutation(async ({ input, ctx }) => {
         const target = await getUserById(input.id);
         if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
         if (input.id === ctx.user.id && input.role !== "admin") throw new TRPCError({ code: "BAD_REQUEST", message: "Không thể tự hạ quyền tài khoản admin đang đăng nhập." });
-        if (target.username?.toLowerCase() === "wstratos" && input.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Tài khoản Wstratos luôn phải giữ quyền Admin." });
+        if (target.username?.toLowerCase() === "wstratos" && input.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Không thể hạ quyền của tài khoản hệ thống." });
         try {
           await updateUserRole(input.id, input.role);
         } catch (error) {

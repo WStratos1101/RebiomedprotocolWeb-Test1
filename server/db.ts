@@ -94,7 +94,7 @@ export async function updateUserApproval(id: number, approvalStatus: "pending" |
   if (!db) throw new Error("Database is not available");
   const target = await getUserById(id);
   if (target?.username?.toLowerCase() === "wstratos" && approvalStatus !== "approved") {
-    throw new Error("Tài khoản Wstratos là Admin hệ thống và không thể bị thu hồi quyền truy cập.");
+    throw new Error("Không thể thu hồi quyền truy cập của tài khoản hệ thống.");
   }
   await db.update(users).set({ approvalStatus }).where(eq(users.id, id));
 }
@@ -312,9 +312,15 @@ export async function updateUserRole(id: number, role: "admin" | "user") {
   if (!db) throw new Error("Database is not available");
   const target = await getUserById(id);
   if (target?.username?.toLowerCase() === "wstratos" && role !== "admin") {
-    throw new Error("Tài khoản Wstratos luôn phải giữ quyền Admin.");
+    throw new Error("Không thể hạ quyền của tài khoản hệ thống.");
   }
   await db.update(users).set({ role }).where(eq(users.id, id));
+}
+
+export async function setUserPasswordHash(id: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(users).set({ passwordHash }).where(eq(users.id, id));
 }
 
 export async function getProtocolById(id: number) {
