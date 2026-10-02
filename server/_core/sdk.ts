@@ -317,6 +317,9 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
+    if (user.approvalStatus === "pending") throw ForbiddenError("Tài khoản đang chờ Admin duyệt");
+    if (user.approvalStatus === "rejected") throw ForbiddenError("Tài khoản đã bị từ chối");
+
     await db.upsertUser({
       openId: user.openId,
       lastSignedIn: signedInAt,

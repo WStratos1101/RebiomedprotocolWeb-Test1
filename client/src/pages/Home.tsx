@@ -44,7 +44,7 @@ import {
   YAxis,
 } from "recharts";
 
-type View = "overview" | "protocols" | "samples" | "calculator" | "admin";
+type View = "overview" | "protocols" | "samples" | "calculator" | "admin" | "adminAccounts" | "createProtocol";
 type Protocol = {
   id: string;
   title: string;
@@ -92,7 +92,7 @@ const calculators: CalculatorDefinition[] = [
 type ExperimentRun = { run: string; date: string; ct: number; efficiency: number };
 const experimentSeries: ExperimentRun[] = [];
 
-type TeamMember = { id: number; name: string; email: string; role: "admin" | "researcher" | "viewer"; lastActive: string };
+type TeamMember = { id: number; name: string; email: string; role: "admin" | "researcher" | "viewer"; approvalStatus: "pending" | "approved" | "rejected"; loginMethod?: string | null; lastActive: string };
 
 const initialTeam: TeamMember[] = [];
 
@@ -102,6 +102,7 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "samples", label: "Mẫu & lý thuyết", icon: FlaskConical },
   { id: "calculator", label: "Công cụ tính", icon: Calculator },
   { id: "admin", label: "Quản trị nội dung", icon: Settings2 },
+  { id: "adminAccounts", label: "Duyệt tài khoản", icon: UserRound },
 ];
 
 function formatNumber(value: number) {
@@ -140,6 +141,9 @@ export default function Home() {
   const deleteProtocolMutation = trpc.content.deleteProtocol.useMutation({ onSuccess: async () => { await contentQuery.refetch(); toast.success("Đã xóa quy trình khỏi kho."); }, onError: error => toast.error(error.message) });
   const teamQuery = trpc.team.list.useQuery(undefined, { enabled: isAuthenticated && isAdmin, retry: false });
   const updateRoleMutation = trpc.team.updateRole.useMutation({ onSuccess: async () => { await teamQuery.refetch(); toast.success("Đã cập nhật quyền người dùng."); }, onError: error => toast.error(error.message) });
+  const updateApprovalMutation = trpc.team.updateApproval.useMutation({ onSuccess: async () => { await teamQuery.refetch(); toast.success("Đã cập nhật trạng thái tài khoản."); }, onError: error => toast.error(error.message) });
+  const loginEmailMutation = trpc.auth.loginEmail.useMutation({ onSuccess: () => window.location.reload(), onError: error => toast.error(error.message) });
+  const signupMutation = trpc.auth.signup.useMutation({ onSuccess: data => toast.success(data.message), onError: error => toast.error(error.message) });
   const [view, setView] = useState<View>("overview");
   const [mobileNav, setMobileNav] = useState(false);
   const [search, setSearch] = useState("");
@@ -160,6 +164,10 @@ export default function Home() {
   const [draftBody, setDraftBody] = useState("");
   const [team, setTeam] = useState<TeamMember[]>(initialTeam);
   const [runs, setRuns] = useState<ExperimentRun[]>(experimentSeries);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authName, setAuthName] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
 
   useEffect(() => {
     if (!contentQuery.data) return;
@@ -170,7 +178,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!teamQuery.data) return;
-    setTeam(teamQuery.data.map(member => ({ id: member.id, name: member.name || "Lab member", email: member.email || "—", role: member.role === "admin" ? "admin" : member.role === "viewer" ? "viewer" : "researcher", lastActive: member.lastSignedIn ? new Date(member.lastSignedIn).toLocaleDateString("vi-VN") : "—" })));
+    setTeam(teamQuery.data.map(member => ({ id: member.id, name: member.name || "Lab member", email: member.email || "—", role: member.role === "admin" ? "admin" : member.role === "viewer" ? "viewer" : "researcher", approvalStatus: member.approvalStatus, loginMethod: member.loginMethod, lastActive: member.lastSignedIn ? new Date(member.lastSignedIn).toLocaleDateString("vi-VN") : "—" })));
   }, [teamQuery.data]);
 
   const filteredProtocols = useMemo(() => protocols.filter(item => `${item.title} ${item.category} ${item.tag} ${item.summary}`.toLowerCase().includes(search.toLowerCase())), [protocols, search]);
@@ -188,18 +196,16 @@ export default function Home() {
   }
 
   if (!isAuthenticated) {
+    const submitEmailAuth = (event: React.FormEvent) => { event.preventDefault(); if (authMode === "login") loginEmailMutation.mutate({ email: authEmail, password: authPassword }); else signupMutation.mutate({ name: authName, email: authEmail, password: authPassword }); };
     return (
-      <main className="auth-state auth-screen">
-        <div className="auth-card">
-          <div className="brand-lockup large"><span className="brand-mark">LV</span><span>labvault</span></div>
-          <div className="eyebrow">PRIVATE LAB WORKSPACE · 01</div>
-          <h1>Kiến thức đúng chỗ.<br /><em>Thao tác đúng nhịp.</em></h1>
-          <p className="auth-copy">Kho quy trình, mẫu và công cụ tính số liệu dành riêng cho phòng thí nghiệm của bạn.</p>
-          <Button onClick={startLogin} className="auth-button"><KeyRound size={16} /> Đăng nhập bằng Manus</Button>
-          <div className="auth-foot"><ShieldCheck size={14} /> Chỉ người dùng được cấp quyền mới có thể mở kho này.</div>
-        </div>
-        <div className="auth-decoration"><span>LABVAULT / CONTROLLED KNOWLEDGE</span><span>v1.0 · PRIVATE BY DEFAULT</span></div>
-      </main>
+      <main className="auth-state auth-screen"><div className="auth-card">
+        <div className="brand-lockup large"><span className="brand-mark">LV</span><span>labvault</span></div><div className="eyebrow">PRIVATE LAB WORKSPACE · 01</div>
+        <h1>Kiến thức đúng chỗ.<br /><em>Thao tác đúng nhịp.</em></h1><p className="auth-copy">Kho quy trình, mẫu và công cụ tính số liệu dành riêng cho phòng thí nghiệm của bạn.</p>
+        <div className="editor-tabs"><button className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>Đăng nhập</button><button className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>Tạo tài khoản</button></div>
+        <form onSubmit={submitEmailAuth}>{authMode === "signup" && <Input value={authName} onChange={e => setAuthName(e.target.value)} placeholder="Họ và tên" required />}<Input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="Email" required /><Input type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="Mật khẩu (tối thiểu 8 ký tự)" minLength={8} required /><Button type="submit" className="auth-button">{authMode === "login" ? "Đăng nhập bằng email" : "Gửi yêu cầu tạo tài khoản"}</Button></form>
+        <div className="auth-divider">hoặc</div><Button onClick={startLogin} variant="outline" className="auth-button"><KeyRound size={16} /> Đăng nhập bằng Manus</Button>
+        <div className="auth-foot"><ShieldCheck size={14} /> Tài khoản email mới cần Admin duyệt trước khi truy cập.</div>
+      </div><div className="auth-decoration"><span>LABVAULT / CONTROLLED KNOWLEDGE</span><span>v1.0 · PRIVATE BY DEFAULT</span></div></main>
     );
   }
 
@@ -207,6 +213,7 @@ export default function Home() {
   const openProtocol = (protocol: Protocol) => { setSelectedProtocol(protocol); setView("protocols"); };
   const openSample = (sample: Sample) => { setSelectedSample(sample); setView("samples"); };
   const editProtocol = (protocol: Protocol) => { if (!canEdit) return toast.error("Viewer chỉ có quyền tra cứu."); setEditingId(protocol.id); setDraftType("Quy trình"); setDraftTitle(protocol.title); setDraftBody(protocol.summary); setSelectedProtocol(null); setView("admin"); };
+  const startCreateProtocol = () => { setDraftType("Quy trình"); setEditingId(null); setDraftTitle(""); setDraftBody(""); setView("createProtocol"); };
   const handleSaveDraft = () => {
     if (!draftTitle.trim()) return toast.error("Vui lòng nhập tên nội dung.");
     if (!canEdit) return toast.error("Viewer chỉ có quyền tra cứu.");
@@ -242,10 +249,12 @@ export default function Home() {
         <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20} /></button><div className="breadcrumb"><span>LabVault</span><ChevronRight size={13} /><strong>{currentView?.label}</strong></div></div><div className="topbar-actions"><div className="global-search"><Search size={15} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm quy trình, mẫu, chủ đề…" /><kbd>⌘ K</kbd></div><div className="topbar-avatar"><UserAvatar name={user?.name} /></div></div></header>
         <div className="page-wrap">
           {view === "overview" && <Overview userName={user?.name} role={role} protocols={protocols} samples={samples} runs={runs} openProtocol={openProtocol} openSample={openSample} setView={setView} />}
-          {view === "protocols" && <ProtocolsView protocols={filteredProtocols} selected={selectedProtocol} setSelected={setSelectedProtocol} openProtocol={openProtocol} onEdit={editProtocol} onDelete={handleDeleteProtocol} canEdit={canEdit} canDelete={isAdmin} search={search} />}
+          {view === "protocols" && <ProtocolsView protocols={filteredProtocols} selected={selectedProtocol} setSelected={setSelectedProtocol} openProtocol={openProtocol} onEdit={editProtocol} onDelete={handleDeleteProtocol} onCreate={startCreateProtocol} canEdit={canEdit} canDelete={isAdmin} search={search} />}
           {view === "samples" && <SamplesView samples={filteredSamples} selected={selectedSample} setSelected={setSelectedSample} openSample={openSample} search={search} />}
           {view === "calculator" && <CalculatorView selectedCalc={selectedCalc} setSelectedCalc={setSelectedCalc} c1={c1} v1={v1} c2={c2} v2={v2} setC1={setC1} setV1={setV1} setC2={setC2} setV2={setV2} resultMode={resultMode} setResultMode={setResultMode} result={calculationResult} runCalculation={runCalculation} recent={recent} clearHistory={() => setRecent([])} canCalculate={canEdit} />}
           {view === "admin" && isAdmin && <AdminView protocols={protocols} samples={samples} team={team} setTeam={setTeam} onRoleChange={(id, nextRole) => updateRoleMutation.mutate({ id, role: nextRole })} draftType={draftType} setDraftType={setDraftType} draftTitle={draftTitle} setDraftTitle={setDraftTitle} draftBody={draftBody} setDraftBody={setDraftBody} onSave={handleSaveDraft} onDeleteProtocol={handleDeleteProtocol} />}
+          {view === "adminAccounts" && isAdmin && <AdminAccountsView team={team} onApprovalChange={(id, approvalStatus) => updateApprovalMutation.mutate({ id, approvalStatus })} />}
+          {view === "createProtocol" && canEdit && <ProtocolEditorPage title={draftTitle} body={draftBody} setTitle={setDraftTitle} setBody={setDraftBody} onSave={handleSaveDraft} onCancel={() => setView("protocols")} />}
         </div>
       </main>
     </div>
@@ -272,9 +281,9 @@ function ExperimentChart({ runs }: { runs: ExperimentRun[] }) {
   return <section className="content-panel experiment-panel"><div className="panel-heading"><div><span className="panel-index">04 / EXPERIMENT SIGNAL · PROTECTED RUN DATA</span><h2>Độ ổn định qPCR trong các run gần nhất</h2></div><div className="chart-legend"><span><i className="legend-dot teal" /> Ct mean</span><span><i className="legend-dot amber" /> Efficiency %</span></div></div><div className="chart-summary"><div><strong>{averageCt ? averageCt.toFixed(2) : "—"}</strong><span>Ct trung bình</span></div><div><strong>{averageEfficiency ? `${averageEfficiency.toFixed(1)}%` : "—"}</strong><span>efficiency trung bình</span></div><div className="chart-caption"><BarChart3 size={16} /> {runs.length ? `${runs.length} run đã đồng bộ từ MySQL` : "Chưa có run được đồng bộ"}</div></div>{runs.length ? <div className="chart-frame"><ResponsiveContainer width="100%" height={190}><AreaChart data={runs} margin={{ top: 12, right: 8, left: -20, bottom: 0 }}><defs><linearGradient id="ctFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#0d5c63" stopOpacity={0.22} /><stop offset="100%" stopColor="#0d5c63" stopOpacity={0.02} /></linearGradient><linearGradient id="effFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c9822b" stopOpacity={0.18} /><stop offset="100%" stopColor="#c9822b" stopOpacity={0.01} /></linearGradient></defs><CartesianGrid stroke="#e0e4dd" strokeDasharray="3 3" vertical={false} /><XAxis dataKey="date" tick={{ fill: "#8b958e", fontSize: 10 }} tickLine={false} axisLine={false} /><YAxis yAxisId="ct" domain={[22, 26]} tick={{ fill: "#8b958e", fontSize: 10 }} tickLine={false} axisLine={false} /><YAxis yAxisId="eff" orientation="right" domain={[88, 102]} hide /><Tooltip contentStyle={{ border: "1px solid #d9ddd5", borderRadius: 7, background: "#fffefa", fontSize: 11 }} labelStyle={{ color: "#18221f", fontWeight: 600 }} /><Area yAxisId="ct" type="monotone" dataKey="ct" name="Ct mean" stroke="#0d5c63" strokeWidth={2} fill="url(#ctFill)" dot={{ r: 3, fill: "#0d5c63", strokeWidth: 0 }} /><Area yAxisId="eff" type="monotone" dataKey="efficiency" name="Efficiency %" stroke="#c9822b" strokeWidth={2} fill="url(#effFill)" dot={{ r: 3, fill: "#c9822b", strokeWidth: 0 }} /></AreaChart></ResponsiveContainer></div> : <div className="empty-state"><BarChart3 size={24} /><h3>Chưa có run dữ liệu</h3><p>Khi import run vào kho, biểu đồ sẽ cập nhật tại đây.</p></div>}<div className="chart-footer"><span>Source: protected experimentRuns · chỉ người dùng được cấp quyền mới thấy dữ liệu</span><span className="chart-status"><span className="status-dot" /> {runs.length ? "Within review range" : "Awaiting run"}</span></div></section>;
 }
 
-function ProtocolsView({ protocols, selected, setSelected, openProtocol, onEdit, onDelete, canEdit, canDelete, search }: { protocols: Protocol[]; selected: Protocol | null; setSelected: (p: Protocol | null) => void; openProtocol: (p: Protocol) => void; onEdit: (protocol: Protocol) => void; onDelete: (id: string) => void; canEdit: boolean; canDelete: boolean; search: string }) {
+function ProtocolsView({ protocols, selected, setSelected, openProtocol, onEdit, onDelete, onCreate, canEdit, canDelete, search }: { protocols: Protocol[]; selected: Protocol | null; setSelected: (p: Protocol | null) => void; openProtocol: (p: Protocol) => void; onEdit: (protocol: Protocol) => void; onDelete: (id: string) => void; onCreate: () => void; canEdit: boolean; canDelete: boolean; search: string }) {
   if (selected) return <ProtocolDetail protocol={selected} onBack={() => setSelected(null)} onEdit={() => onEdit(selected)} onDelete={onDelete} canEdit={canEdit} canDelete={canDelete} />;
-  return <><PageIntro eyebrow="PROTOCOL HANDBOOK / 12 ENTRIES" title={<>Quy trình <em>đã được kiểm chứng.</em></>} description="Các phiên bản thao tác được review và lưu theo từng assay, để mỗi lần chạy đều có cùng một điểm bắt đầu." action={canEdit ? <Button className="primary-cta"><Plus size={16} /> Thêm quy trình</Button> : <span className="last-sync"><ShieldCheck size={13} /> Viewer · read only</span>} /><div className="filter-row"><div className="filter-label"><ClipboardList size={15} /> {protocols.length} protocol {search && <span>cho “{search}”</span>}</div><div className="filter-chips"><button className="filter-chip active">Tất cả</button><button className="filter-chip">Đã duyệt <span>2</span></button><button className="filter-chip">Bản nháp <span>1</span></button></div></div><div className="protocol-cards">{protocols.map(protocol => <button key={protocol.id} className="protocol-card" onClick={() => openProtocol(protocol)}><div className="protocol-card-top"><span className="protocol-tag">{protocol.tag}</span><span className={`status-pill ${protocol.status === "Đã duyệt" ? "approved" : "draft"}`}>{protocol.status}</span></div><h2>{protocol.title}</h2><p>{protocol.summary}</p><div className="protocol-card-meta"><span><Clock3 size={13} /> {protocol.duration}</span><span><FilePenLine size={13} /> {protocol.version}</span><span className="meta-owner"><UserRound size={13} /> {protocol.owner}</span><ChevronRight size={16} /></div></button>)}</div></>;
+  return <><PageIntro eyebrow="PROTOCOL HANDBOOK / 12 ENTRIES" title={<>Quy trình <em>đã được kiểm chứng.</em></>} description="Các phiên bản thao tác được review và lưu theo từng assay, để mỗi lần chạy đều có cùng một điểm bắt đầu." action={canEdit ? <Button className="primary-cta" onClick={onCreate}><Plus size={16} /> Thêm quy trình</Button> : <span className="last-sync"><ShieldCheck size={13} /> Viewer · read only</span>} /><div className="filter-row"><div className="filter-label"><ClipboardList size={15} /> {protocols.length} protocol {search && <span>cho “{search}”</span>}</div><div className="filter-chips"><button className="filter-chip active">Tất cả</button><button className="filter-chip">Đã duyệt <span>2</span></button><button className="filter-chip">Bản nháp <span>1</span></button></div></div><div className="protocol-cards">{protocols.map(protocol => <button key={protocol.id} className="protocol-card" onClick={() => openProtocol(protocol)}><div className="protocol-card-top"><span className="protocol-tag">{protocol.tag}</span><span className={`status-pill ${protocol.status === "Đã duyệt" ? "approved" : "draft"}`}>{protocol.status}</span></div><h2>{protocol.title}</h2><p>{protocol.summary}</p><div className="protocol-card-meta"><span><Clock3 size={13} /> {protocol.duration}</span><span><FilePenLine size={13} /> {protocol.version}</span><span className="meta-owner"><UserRound size={13} /> {protocol.owner}</span><ChevronRight size={16} /></div></button>)}</div></>;
 }
 
 function ProtocolDetail({ protocol, onBack, onEdit, onDelete, canEdit, canDelete }: { protocol: Protocol; onBack: () => void; onEdit: () => void; onDelete: (id: string) => void; canEdit: boolean; canDelete: boolean }) {
@@ -299,4 +308,13 @@ function CalculatorView({ selectedCalc, setSelectedCalc, c1, v1, c2, v2, setC1, 
 
 function AdminView({ protocols, samples, team, setTeam, onRoleChange, draftType, setDraftType, draftTitle, setDraftTitle, draftBody, setDraftBody, onSave, onDeleteProtocol }: { protocols: Protocol[]; samples: Sample[]; team: TeamMember[]; setTeam: React.Dispatch<React.SetStateAction<TeamMember[]>>; onRoleChange: (id: number, role: TeamMember["role"]) => void; draftType: "Quy trình" | "Mẫu" | "Lý thuyết"; setDraftType: (t: "Quy trình" | "Mẫu" | "Lý thuyết") => void; draftTitle: string; setDraftTitle: (s: string) => void; draftBody: string; setDraftBody: (s: string) => void; onSave: () => void; onDeleteProtocol: (id: string) => void }) {
   return <><PageIntro eyebrow="OWNER CONSOLE / CONTENT CONTROL" title={<>Chủ động giữ kho <em>luôn đúng.</em></>} description="Tạo bản nháp, cập nhật reference và giữ toàn bộ nội dung phòng lab trong một nơi có lịch sử rõ ràng." action={<div className="owner-chip"><ShieldCheck size={15} /> Owner access</div>} /><div className="admin-layout"><section className="content-panel editor-panel"><div className="panel-heading"><div><span className="panel-index">NEW ENTRY / DRAFT</span><h2>Thêm nội dung vào kho</h2></div><span className="draft-badge">Server saved</span></div><div className="editor-tabs">{(["Quy trình", "Mẫu", "Lý thuyết"] as const).map(type => <button key={type} className={draftType === type ? "active" : ""} onClick={() => setDraftType(type)}>{type}</button>)}</div><label className="field-label">Tiêu đề / tên reference<Input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} placeholder={draftType === "Quy trình" ? "VD: Western blot — membrane transfer" : "VD: Recombinant protein R-102"} /></label><label className="field-label">Mô tả hoặc ghi chú nội bộ<Textarea value={draftBody} onChange={e => setDraftBody(e.target.value)} placeholder="Viết thông tin để team có thể dùng ngay…" rows={6} /></label><div className="editor-footer"><span><FilePenLine size={14} /> Bản nháp được lưu vào managed MySQL</span><Button onClick={onSave} className="primary-cta"><Check size={15} /> Lưu bản nháp</Button></div></section><aside className="content-panel inventory-panel"><div className="panel-heading"><div><span className="panel-index">CONTENT INVENTORY</span><h2>Đang quản lý</h2></div><MoreHorizontal size={18} /></div><div className="inventory-group"><span className="inventory-label">Quy trình <b>{protocols.length}</b></span>{protocols.slice(0, 4).map(protocol => <div className="inventory-row" key={protocol.id}><span className="inventory-dot teal" /><span>{protocol.title}</span><button onClick={() => onDeleteProtocol(protocol.id)} aria-label={`Xóa ${protocol.title}`}><Trash2 size={13} /></button></div>)}</div><div className="inventory-group"><span className="inventory-label">Mẫu & lý thuyết <b>{samples.length}</b></span>{samples.slice(0, 3).map(sample => <div className="inventory-row" key={sample.id}><span className="inventory-dot amber" /><span>{sample.name}</span><MoreHorizontal size={13} /></div>)}</div><div className="admin-note"><ShieldCheck size={15} /><span><strong>Role-based access</strong>Chỉ owner mới thấy khu vực này.</span></div></aside></div><section className="content-panel team-panel"><div className="panel-heading"><div><span className="panel-index">TEAM ACCESS / ROLE POLICY</span><h2>Phân quyền người dùng</h2></div><span className="team-policy"><ShieldCheck size={14} /> 3 cấp truy cập</span></div><div className="role-guide"><span><b className="role-admin">Admin</b> Nội dung + thành viên</span><span><b className="role-researcher">Researcher</b> Tạo bản nháp + calculator</span><span><b className="role-viewer">Viewer</b> Chỉ đọc + tra cứu</span></div>{team.map(member => <div className="team-row" key={member.id}><UserAvatar name={member.name} /><span className="team-identity"><strong>{member.name}</strong><small>{member.email} · hoạt động {member.lastActive}</small></span><select value={member.role} onChange={event => { const nextRole = event.target.value as TeamMember["role"]; setTeam(current => current.map(item => item.id === member.id ? { ...item, role: nextRole } : item)); onRoleChange(member.id, nextRole); }}><option value="admin">Admin</option><option value="researcher">Researcher</option><option value="viewer">Viewer</option></select><span className={`role-pill ${member.role}`}>{member.role}</span></div>)}</section></>;
+}
+
+function AdminAccountsView({ team, onApprovalChange }: { team: TeamMember[]; onApprovalChange: (id: number, status: TeamMember["approvalStatus"]) => void }) {
+  const pending = team.filter(member => member.approvalStatus === "pending");
+  return <><PageIntro eyebrow="ADMIN / ACCOUNT REVIEW" title={<>Duyệt <em>tài khoản truy cập.</em></>} description="Kiểm tra các yêu cầu đăng ký email trước khi cấp quyền vào workspace private." action={<div className="owner-chip"><ShieldCheck size={15} /> Admin only</div>} /><section className="content-panel team-panel"><div className="panel-heading"><div><span className="panel-index">PENDING ACCESS / {pending.length}</span><h2>Yêu cầu đang chờ duyệt</h2></div><span className="team-policy">{team.length} tài khoản</span></div>{pending.length ? pending.map(member => <div className="team-row" key={member.id}><UserAvatar name={member.name} /><span className="team-identity"><strong>{member.name}</strong><small>{member.email} · đăng ký {member.lastActive}</small></span><Button variant="outline" onClick={() => onApprovalChange(member.id, "rejected")}>Từ chối</Button><Button className="primary-cta" onClick={() => onApprovalChange(member.id, "approved")}>Duyệt</Button></div>) : <div className="empty-state"><Check size={24} /><h3>Không có yêu cầu mới</h3><p>Các tài khoản email mới sẽ xuất hiện ở đây.</p></div>}</section><section className="content-panel team-panel"><div className="panel-heading"><div><span className="panel-index">ACCOUNT DIRECTORY</span><h2>Tài khoản đã xử lý</h2></div></div>{team.filter(member => member.approvalStatus !== "pending").map(member => <div className="team-row" key={member.id}><UserAvatar name={member.name} /><span className="team-identity"><strong>{member.name}</strong><small>{member.email} · {member.loginMethod || "Manus"}</small></span><span className={`role-pill ${member.approvalStatus}`}>{member.approvalStatus === "approved" ? "Đã duyệt" : "Từ chối"}</span></div>)}</section></>;
+}
+
+function ProtocolEditorPage({ title, body, setTitle, setBody, onSave, onCancel }: { title: string; body: string; setTitle: (value: string) => void; setBody: (value: string) => void; onSave: () => void; onCancel: () => void }) {
+  return <><button className="back-link" onClick={onCancel}><ArrowLeft size={15} /> Quay lại danh sách quy trình</button><PageIntro eyebrow="PROTOCOL BUILDER / NEW PAGE" title={<>Tạo <em>quy trình mới.</em></>} description="Mỗi quy trình được lưu dưới dạng bản nháp để Admin có thể kiểm tra và duyệt trước khi sử dụng." /><section className="content-panel editor-panel"><div className="panel-heading"><div><span className="panel-index">NEW PROTOCOL PAGE</span><h2>Nội dung quy trình</h2></div><span className="draft-badge">Bản nháp</span></div><label className="field-label">Tên quy trình<Input value={title} onChange={event => setTitle(event.target.value)} placeholder="VD: Perfusion" /></label><label className="field-label">Các bước thực hiện<Textarea value={body} onChange={event => setBody(event.target.value)} placeholder="Nhập từng bước theo thứ tự, mỗi bước một dòng…" rows={18} /></label><div className="editor-footer"><span><FilePenLine size={14} /> Trang mới sẽ được lưu vào managed MySQL</span><div><Button variant="outline" onClick={onCancel}>Hủy</Button><Button onClick={onSave} className="primary-cta"><Check size={15} /> Lưu bản nháp</Button></div></div></section></>;
 }

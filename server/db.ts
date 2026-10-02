@@ -1,5 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { createHash } from "node:crypto";
 import { calculators, experimentRuns, InsertUser, protocols, samples, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -21,7 +22,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const values: InsertUser = { openId: user.openId };
+  const values: InsertUser = { openId: user.openId, approvalStatus: user.approvalStatus ?? "approved" };
   const updateSet: Record<string, unknown> = {};
   const textFields = ["name", "email", "loginMethod"] as const;
   textFields.forEach(field => {
@@ -41,6 +42,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     values.role = "admin";
     updateSet.role = "admin";
   }
+  if (user.approvalStatus !== undefined) {
+    values.approvalStatus = user.approvalStatus;
+    updateSet.approvalStatus = user.approvalStatus;
+  }
   values.lastSignedIn ??= new Date();
   if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
   await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
@@ -51,6 +56,26 @@ export async function getUserByOpenId(openId: string) {
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
   return result[0];
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+  return result[0];
+}
+
+export async function createEmailUser(input: { email: string; name: string; passwordHash: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const email = input.email.toLowerCase();
+  await db.insert(users).values({ openId: createHash("sha256").update(email).digest("hex"), email, name: input.name, passwordHash: input.passwordHash, loginMethod: "email", role: "researcher", approvalStatus: "pending" });
+}
+
+export async function updateUserApproval(id: number, approvalStatus: "pending" | "approved" | "rejected") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(users).set({ approvalStatus }).where(eq(users.id, id));
 }
 
 const seedProtocols = [
@@ -187,7 +212,7 @@ export async function deleteProtocolById(id: number) {
 export async function listTeamMembers() {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ id: users.id, name: users.name, email: users.email, role: users.role, lastSignedIn: users.lastSignedIn }).from(users).orderBy(asc(users.id));
+  return db.select({ id: users.id, name: users.name, email: users.email, role: users.role, approvalStatus: users.approvalStatus, loginMethod: users.loginMethod, lastSignedIn: users.lastSignedIn }).from(users).orderBy(asc(users.id));
 }
 
 export async function updateUserRole(id: number, role: "admin" | "researcher" | "viewer") {
