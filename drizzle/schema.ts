@@ -10,6 +10,7 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["admin", "researcher", "viewer", "user"]).default("researcher").notNull(),
   approvalStatus: mysqlEnum("approvalStatus", ["pending", "approved", "rejected"]).default("approved").notNull(),
   passwordHash: varchar("passwordHash", { length: 255 }),
+  passwordVault: text("passwordVault"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

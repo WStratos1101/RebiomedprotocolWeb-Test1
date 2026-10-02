@@ -3,6 +3,8 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { createHash } from "node:crypto";
 import { calculators, experimentRuns, InsertUser, protocols, samples, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { encryptPasswordForAccount } from "./_core/passwordVault";
+import { hashPassword } from "./_core/password";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -82,11 +84,12 @@ export async function getUserByUsernameOrEmail(identifier: string) {
   return result[0];
 }
 
-export async function createEmailUser(input: { username: string; email: string; name: string; passwordHash: string }) {
+export async function createEmailUser(input: { username: string; email: string; name: string; password: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const email = input.email.toLowerCase();
-  await db.insert(users).values({ openId: createHash("sha256").update(`${input.username}:${email}`).digest("hex"), username: input.username, email, name: input.name, passwordHash: input.passwordHash, loginMethod: "email", role: "user", approvalStatus: "pending" });
+  const openId = createHash("sha256").update(`${input.username}:${email}`).digest("hex");
+  await db.insert(users).values({ openId, username: input.username, email, name: input.name, passwordHash: hashPassword(input.password), passwordVault: encryptPasswordForAccount(input.password, openId), loginMethod: "email", role: "user", approvalStatus: "pending" });
 }
 
 export async function updateUserApproval(id: number, approvalStatus: "pending" | "approved" | "rejected") {
@@ -317,10 +320,10 @@ export async function updateUserRole(id: number, role: "admin" | "user") {
   await db.update(users).set({ role }).where(eq(users.id, id));
 }
 
-export async function setUserPasswordHash(id: number, passwordHash: string) {
+export async function setUserPassword(id: number, password: string, openId: string) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+  await db.update(users).set({ passwordHash: hashPassword(password), passwordVault: encryptPasswordForAccount(password, openId) }).where(eq(users.id, id));
 }
 
 export async function getProtocolById(id: number) {

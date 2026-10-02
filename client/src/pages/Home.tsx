@@ -317,7 +317,7 @@ export default function Home() {
           {view === "special" && <SpecialExperimentsView protocols={protocols} tools={calculatorTools} category={specialCategory} setCategory={setSpecialCategory} openProtocol={protocol => { const full = protocols.find(item => item.id === protocol.id); if (full) openProtocol(full); }} openTool={id => { setSelectedCalc(id); setView("calculator"); }} createProtocol={startCreateProtocol} createTool={startCreateCalculator} />}
           {view === "admin" && <AdminView isAdmin={isAdmin} protocols={protocols} samples={samples} draftOwner={draftOwner} setDraftOwner={setDraftOwner} calculators={calculatorTools} onEditCalculator={handleEditCalculator} onDeleteCalculator={handleDeleteCalculator} onCreateProtocol={() => startCreateProtocol()} draftType={draftType} setDraftType={setDraftType} draftTitle={draftTitle} setDraftTitle={setDraftTitle} draftBody={draftBody} setDraftBody={setDraftBody} draftFormula={draftFormula} setDraftFormula={setDraftFormula} draftInputUnits={draftInputUnits} setDraftInputUnits={setDraftInputUnits} draftItems={draftItems} setDraftItems={setDraftItems} draftOutputUnit={draftOutputUnit} setDraftOutputUnit={setDraftOutputUnit} onSave={handleSaveDraft} draftCategory={draftCategory} setDraftCategory={setDraftCategory} onDeleteProtocol={handleDeleteProtocol} onEditSample={editSample} />}
           {view === "adminLogin" && <AdminLoginView onSuccess={async () => { await authQuery.refetch(); setView("adminAccounts"); }} />}
-          {view === "adminAccounts" && isAdmin && <><AdminAccountsView canManagePasswords={user?.username?.toLowerCase() === "wstratos"} team={(teamQuery.data ?? []).map(member => ({ ...member, name: member.name ?? "(chưa đặt tên)", email: member.email ?? "", lastActive: member.lastSignedIn ? new Date(member.lastSignedIn).toLocaleDateString("vi-VN") : "—", role: member.role as TeamMember["role"] }))} onApprovalChange={(id, status) => updateApprovalMutation.mutate({ id, approvalStatus: status })} onRoleChange={(id, roleValue) => updateRoleMutation.mutate({ id, role: roleValue })} onRevokeAccess={id => revokeAccessMutation.mutate({ id })} onDeleteUser={id => deleteUserMutation.mutate({ id })} onResetPassword={(id, password) => resetPasswordMutation.mutate({ id, password })} /><AdminReviewView protocols={protocols} samples={samples} calculators={calculatorTools} onApproveProtocol={id => approveProtocolMutation.mutate({ id })} onApproveSample={id => approveSampleMutation.mutate({ id })} onApproveCalculator={id => approveCalculatorMutation.mutate({ id })} /></>}
+          {view === "adminAccounts" && isAdmin && <><AdminAccountsView canManagePasswords={user?.username?.toLowerCase() === "wstratos"} viewerId={user?.id ?? 0} team={(teamQuery.data ?? []).map(member => ({ ...member, name: member.name ?? "(chưa đặt tên)", email: member.email ?? "", lastActive: member.lastSignedIn ? new Date(member.lastSignedIn).toLocaleDateString("vi-VN") : "—", role: member.role as TeamMember["role"] }))} onApprovalChange={(id, status) => updateApprovalMutation.mutate({ id, approvalStatus: status })} onRoleChange={(id, roleValue) => updateRoleMutation.mutate({ id, role: roleValue })} onRevokeAccess={id => revokeAccessMutation.mutate({ id })} onDeleteUser={id => deleteUserMutation.mutate({ id })} onResetPassword={(id, password) => resetPasswordMutation.mutate({ id, password })} /><AdminReviewView protocols={protocols} samples={samples} calculators={calculatorTools} onApproveProtocol={id => approveProtocolMutation.mutate({ id })} onApproveSample={id => approveSampleMutation.mutate({ id })} onApproveCalculator={id => approveCalculatorMutation.mutate({ id })} /></>}
           {view === "createProtocol" && canEdit && <ProtocolEditorPage title={draftTitle} owner={draftOwner} body={draftBody} steps={draftSteps} category={draftCategory} setTitle={setDraftTitle} setOwner={setDraftOwner} setBody={setDraftBody} setSteps={setDraftSteps} onSave={handleSaveDraft} onCancel={() => setView(draftCategory === "Custom" ? "protocols" : "special")} />}
         </div>
       </main>
@@ -400,23 +400,99 @@ function AdminLoginView({ onSuccess }: { onSuccess: () => void }) {
   return <><PageIntro eyebrow="ADMIN ACCESS / SECURE SIGN-IN" title={<>Khu vực <em>quản trị riêng.</em></>} description="Nội dung công khai vẫn dùng được không cần đăng nhập. Chỉ tài khoản Admin mới mở được bảng account và duyệt nội dung." /><section className="content-panel auth-card-inline"><div className="panel-heading"><div><span className="panel-index">{registering ? "REGISTER USER" : "ADMIN LOGIN"}</span><h2>{registering ? "Đăng ký tài khoản User" : "Đăng nhập Admin"}</h2></div><ShieldCheck size={20} /></div>{registering ? <><label className="field-label">Username<Input value={username} onChange={event => setUsername(event.target.value)} placeholder="Ví dụ: lab.user" autoComplete="username" /></label><label className="field-label">Họ và Tên<Input value={name} onChange={event => setName(event.target.value)} placeholder="Nhập họ và tên đầy đủ" /></label><label className="field-label">Email<Input value={email} onChange={event => setEmail(event.target.value)} placeholder="name@example.com" type="email" autoComplete="email" /></label><label className="field-label">Mật khẩu<Input value={password} onChange={event => setPassword(event.target.value)} type="password" autoComplete="new-password" placeholder="Tối thiểu 8 ký tự" /></label><div className="editor-footer"><Button variant="outline" onClick={() => setRegistering(false)}>Quay lại đăng nhập</Button><Button className="primary-cta" onClick={() => registerMutation.mutate({ username, name, email, password })}>Tạo tài khoản User</Button></div></> : <><label className="field-label">Username hoặc email<Input value={identifier} onChange={event => setIdentifier(event.target.value)} placeholder="Username hoặc email admin" autoComplete="username" /></label><label className="field-label">Mật khẩu<Input value={password} onChange={event => setPassword(event.target.value)} type="password" autoComplete="current-password" /></label><div className="editor-footer"><Button variant="outline" onClick={() => setRegistering(true)}>Đăng ký User</Button><Button className="primary-cta" onClick={() => loginMutation.mutate({ identifier, password })}>Đăng nhập Admin</Button></div></>}</section></>;
 }
 
-function AdminAccountsView({ team, onApprovalChange, onRoleChange, onRevokeAccess, onDeleteUser, canManagePasswords, onResetPassword }: { team: TeamMember[]; onApprovalChange: (id: number, status: TeamMember["approvalStatus"]) => void; onRoleChange: (id: number, role: "admin" | "user") => void; onRevokeAccess: (id: number) => void; onDeleteUser: (id: number) => void; canManagePasswords: boolean; onResetPassword: (id: number, password: string) => void }) {
+function AdminAccountsView({ team, onApprovalChange, onRoleChange, onRevokeAccess, onDeleteUser, canManagePasswords, viewerId, onResetPassword }: { team: TeamMember[]; onApprovalChange: (id: number, status: TeamMember["approvalStatus"]) => void; onRoleChange: (id: number, role: "admin" | "user") => void; onRevokeAccess: (id: number) => void; onDeleteUser: (id: number) => void; canManagePasswords: boolean; viewerId: number; onResetPassword: (id: number, password: string) => void }) {
   const pending = team.filter(member => member.approvalStatus === "pending");
+  const [revealed, setRevealed] = useState<{ id: number; password: string } | null>(null);
+  const [viewTarget, setViewTarget] = useState<TeamMember | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [resetTarget, setResetTarget] = useState<TeamMember | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const viewPasswordMutation = trpc.team.viewPassword.useMutation({
+    onSuccess: (result, input) => {
+      if (result.available && result.password !== null) setRevealed({ id: input.id, password: result.password });
+      else toast.info("Mật khẩu hiện tại không thể khôi phục. Có thể đặt lại mật khẩu mới.");
+      viewPasswordMutation.reset();
+    },
+    onError: error => { toast.error(error.message); viewPasswordMutation.reset(); },
+  });
+  useEffect(() => {
+    if (!revealed) return;
+    const timer = window.setTimeout(() => setRevealed(null), 30_000);
+    return () => window.clearTimeout(timer);
+  }, [revealed]);
   const isProtectedAdmin = (member: TeamMember) => member.username?.toLowerCase() === "wstratos";
+  const canView = (member: TeamMember) => member.loginMethod === "email" && (canManagePasswords || member.role !== "admin" || member.id === viewerId);
   const revoke = (member: TeamMember) => {
     if (window.confirm(`Thu hồi quyền truy cập của User ${member.username || member.name}? Tài khoản sẽ không thể đăng nhập cho đến khi được Admin duyệt lại.`)) onRevokeAccess(member.id);
   };
   const deleteUser = (member: TeamMember) => {
     if (window.confirm(`Xoá User ${member.username || member.name}? Thao tác này xoá vĩnh viễn tài khoản.`) && window.confirm("Xác nhận lần cuối: xoá tài khoản User này?")) onDeleteUser(member.id);
   };
-  const resetPassword = (member: TeamMember) => {
-    const password = window.prompt("Nhập mật khẩu mới (tối thiểu 8 ký tự):");
-    if (!password) return;
-    const confirmation = window.prompt("Nhập lại mật khẩu mới:");
-    if (password !== confirmation) return window.alert("Hai mật khẩu không khớp.");
-    onResetPassword(member.id, password);
+  const submitView = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!viewTarget || !currentPassword) return;
+    viewPasswordMutation.mutate({ id: viewTarget.id, currentPassword });
+    setCurrentPassword("");
+    setViewTarget(null);
   };
-  return <><PageIntro eyebrow="ADMIN / ACCOUNT MANAGEMENT" title={<>Quản lý <em>tài khoản workspace.</em></>} description="Bảng này chỉ hiển thị sau khi Admin đăng nhập. Admin có thể duyệt tài khoản, nâng/hạ quyền User và thu hồi quyền truy cập User." action={<div className="owner-chip"><ShieldCheck size={15} /> Admin only</div>} /><section className="content-panel team-panel"><div className="panel-heading"><div><span className="panel-index">PENDING ACCOUNTS / {pending.length}</span><h2>Tài khoản mới đăng ký</h2></div><span className="team-policy">{team.length} tài khoản</span></div>{pending.length ? pending.map(member => <div className="team-row" key={member.id}><UserAvatar name={member.name} /><span className="team-identity"><strong>{member.username || member.name}</strong><small>{member.name} · {member.email} · đăng ký {member.lastActive}</small></span><Button variant="outline" onClick={() => onApprovalChange(member.id, "rejected")}>Từ chối</Button><Button className="primary-cta" onClick={() => onApprovalChange(member.id, "approved")}>Duyệt</Button><Button variant="outline" onClick={() => deleteUser(member)}>Xoá User</Button>{canManagePasswords && <Button variant="outline" onClick={() => resetPassword(member)}>Đặt lại mật khẩu</Button>}</div>) : <div className="empty-state"><Check size={24} /><h3>Không có tài khoản chờ duyệt</h3><p>Tài khoản User mới sẽ xuất hiện ở đây.</p></div>}</section><section className="content-panel team-panel"><div className="panel-heading"><div><span className="panel-index">ACCOUNT DIRECTORY</span><h2>Tất cả tài khoản</h2></div><span className="team-policy">Chỉ Admin nhìn thấy</span></div>{team.map(member => <div className="team-row" key={member.id}><UserAvatar name={member.name} /><span className="team-identity"><strong>{member.username || member.name}</strong><small>{member.name} · {member.email || "Chưa có email"} · {member.loginMethod || "email"}</small></span><span className={`role-pill ${member.role === "admin" ? "admin" : "user"}`}>{member.role === "admin" ? "Admin" : "User"}</span><select disabled={isProtectedAdmin(member)} value={member.role === "admin" ? "admin" : "user"} onChange={event => onRoleChange(member.id, event.target.value as "admin" | "user")} aria-label={`Quyền của ${member.username || member.name}`}><option value="user">User</option><option value="admin">Admin</option></select>{isProtectedAdmin(member) ? null : member.role !== "admin" && member.approvalStatus === "approved" ? <><Button variant="outline" onClick={() => revoke(member)}>Thu hồi quyền</Button><Button variant="outline" onClick={() => deleteUser(member)}>Xoá User</Button></> : member.role !== "admin" && member.approvalStatus === "rejected" ? <><Button variant="outline" onClick={() => onApprovalChange(member.id, "approved")}>Khôi phục quyền</Button><Button variant="outline" onClick={() => deleteUser(member)}>Xoá User</Button></> : null}{canManagePasswords && <Button variant="outline" onClick={() => resetPassword(member)}>Đặt lại mật khẩu</Button>}</div>)}</section></>;
+  const credentialActions = (member: TeamMember) => canView(member) ? <>
+    <Button variant="outline" disabled={viewPasswordMutation.isPending} onClick={() => { setRevealed(null); setViewTarget(member); setCurrentPassword(""); }}>Xem mật khẩu</Button>
+    <Button variant="outline" onClick={() => { setRevealed(null); setResetTarget(member); setNewPassword(""); setPasswordConfirmation(""); }}>Đặt lại mật khẩu</Button>
+    {revealed?.id === member.id && <span className="password-reveal"><code>{revealed.password}</code><button type="button" onClick={() => setRevealed(null)}>Ẩn</button></span>}
+  </> : null;
+  const submitReset = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!resetTarget || newPassword.length < 8 || newPassword !== passwordConfirmation) {
+      toast.error("Mật khẩu phải có ít nhất 8 ký tự và hai lần nhập phải khớp.");
+      return;
+    }
+    onResetPassword(resetTarget.id, newPassword);
+    setNewPassword("");
+    setPasswordConfirmation("");
+    setResetTarget(null);
+    setRevealed(null);
+  };
+  return <>
+    <PageIntro eyebrow="ADMIN / ACCOUNT MANAGEMENT" title={<>Quản lý <em>tài khoản workspace.</em></>} description="Duyệt tài khoản, điều chỉnh quyền và quản lý User." />
+    <section className="content-panel team-panel">
+      <div className="panel-heading"><div><span className="panel-index">PENDING ACCOUNTS / {pending.length}</span><h2>Tài khoản mới đăng ký</h2></div><span className="team-policy">{team.length} tài khoản</span></div>
+      {pending.length ? pending.map(member => <div className="team-row" key={member.id}>
+        <UserAvatar name={member.name} /><span className="team-identity"><strong>{member.username || member.name}</strong><small>{member.name} · {member.email} · đăng ký {member.lastActive}</small></span>
+        <Button variant="outline" onClick={() => onApprovalChange(member.id, "rejected")}>Từ chối</Button>
+        <Button className="primary-cta" onClick={() => onApprovalChange(member.id, "approved")}>Duyệt</Button>
+        <Button variant="outline" onClick={() => deleteUser(member)}>Xoá User</Button>{credentialActions(member)}
+      </div>) : <div className="empty-state"><Check size={24} /><h3>Không có tài khoản chờ duyệt</h3><p>Tài khoản User mới sẽ xuất hiện ở đây.</p></div>}
+    </section>
+    <section className="content-panel team-panel">
+      <div className="panel-heading"><div><span className="panel-index">ACCOUNT DIRECTORY</span><h2>Tất cả tài khoản</h2></div></div>
+      {team.map(member => <div className="team-row" key={member.id}>
+        <UserAvatar name={member.name} /><span className="team-identity"><strong>{member.username || member.name}</strong><small>{member.name} · {member.email || "Chưa có email"} · {member.loginMethod || "email"}</small></span>
+        <span className={`role-pill ${member.role === "admin" ? "admin" : "user"}`}>{member.role === "admin" ? "Admin" : "User"}</span>
+        <select disabled={isProtectedAdmin(member)} value={member.role === "admin" ? "admin" : "user"} onChange={event => { setRevealed(null); onRoleChange(member.id, event.target.value as "admin" | "user"); }} aria-label={`Quyền của ${member.username || member.name}`}><option value="user">User</option><option value="admin">Admin</option></select>
+        {!isProtectedAdmin(member) && member.role !== "admin" && member.approvalStatus === "approved" && <><Button variant="outline" onClick={() => revoke(member)}>Thu hồi quyền</Button><Button variant="outline" onClick={() => deleteUser(member)}>Xoá User</Button></>}
+        {!isProtectedAdmin(member) && member.role !== "admin" && member.approvalStatus === "rejected" && <><Button variant="outline" onClick={() => onApprovalChange(member.id, "approved")}>Khôi phục quyền</Button><Button variant="outline" onClick={() => deleteUser(member)}>Xoá User</Button></>}
+        {credentialActions(member)}
+      </div>)}
+    </section>
+    {viewTarget && <section className="content-panel team-panel" aria-label="Xem mật khẩu">
+      <h2>Xem mật khẩu · {viewTarget.username || viewTarget.name}</h2>
+      <form onSubmit={submitView} className="password-reset-form">
+        <label className="field-label">Xác nhận mật khẩu Admin của bạn<Input type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} required /></label>
+        <Button type="button" variant="outline" onClick={() => { setViewTarget(null); setCurrentPassword(""); }}>Huỷ</Button>
+        <Button type="submit" className="primary-cta">Xác nhận và xem</Button>
+      </form>
+    </section>}
+    {resetTarget && <section className="content-panel team-panel" aria-label="Đặt lại mật khẩu">
+      <h2>Đặt lại mật khẩu · {resetTarget.username || resetTarget.name}</h2>
+      <form onSubmit={submitReset} className="password-reset-form">
+        <label className="field-label">Mật khẩu mới<Input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={8} required /></label>
+        <label className="field-label">Nhập lại mật khẩu<Input type="password" autoComplete="new-password" value={passwordConfirmation} onChange={event => setPasswordConfirmation(event.target.value)} minLength={8} required /></label>
+        <Button type="button" variant="outline" onClick={() => { setResetTarget(null); setNewPassword(""); setPasswordConfirmation(""); }}>Huỷ</Button>
+        <Button type="submit" className="primary-cta">Lưu mật khẩu mới</Button>
+      </form>
+    </section>}
+  </>;
 }
 function AdminReviewView({ protocols, samples, calculators, onApproveProtocol, onApproveSample, onApproveCalculator }: { protocols: Protocol[]; samples: Sample[]; calculators: CalculatorDefinition[]; onApproveProtocol: (id: number) => void; onApproveSample: (id: number) => void; onApproveCalculator: (id: number) => void }) {
   const draftProtocols = protocols.filter(item => item.status !== "Đã duyệt");

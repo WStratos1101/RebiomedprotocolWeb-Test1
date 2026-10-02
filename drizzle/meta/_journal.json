@@ -71,6 +71,13 @@
       "when": 1790939195857,
       "tag": "0009_seed_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1790953458000,
+      "tag": "0010_password_vault",
+      "breakpoints": true
     }
   ]
 }

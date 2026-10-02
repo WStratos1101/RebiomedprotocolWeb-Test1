@@ -3,8 +3,9 @@ import { TRPCError } from "@trpc/server";
 import { getFormulaVariables } from "@shared/formulaMath";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
-import { hashPassword, verifyPassword } from "./_core/password";
-import { createCalculatorDraft, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserById, getUserByUsernameOrEmail, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, setUserPasswordHash, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
+import { verifyPassword } from "./_core/password";
+import { decryptPasswordForAccount } from "./_core/passwordVault";
+import { createCalculatorDraft, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserById, getUserByUsernameOrEmail, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
@@ -22,7 +23,11 @@ export const appRouter = router({
       return { id: user.id, username: user.username, name: user.name, email: user.email, role: "admin" as const };
     }),
     register: publicProcedure.input(z.object({ username: z.string().trim().min(3).max(80).regex(/^[A-Za-z0-9_.-]+$/), name: z.string().trim().min(1).max(160), email: z.string().trim().email().max(320), password: z.string().min(8).max(200) })).mutation(async ({ input }) => {
-      try { await createEmailUser({ ...input, passwordHash: hashPassword(input.password) }); } catch (error) { throw new TRPCError({ code: "CONFLICT", message: "Username hoặc email đã tồn tại." }); }
+      if (!process.env.REBIOMED_PASSWORD_VAULT_KEY) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Chức năng đăng ký đang được cấu hình." });
+      try { await createEmailUser(input); } catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "ER_DUP_ENTRY") throw new TRPCError({ code: "CONFLICT", message: "Username hoặc email đã tồn tại." });
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Không thể tạo tài khoản lúc này." });
+      }
       return { success: true as const, message: "Tài khoản đã được đăng ký với quyền User." };
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -114,6 +119,27 @@ export const appRouter = router({
 
   team: router({
     list: adminProcedure.query(() => listTeamMembers()),
+    viewPassword: adminProcedure.input(z.object({ id: z.number().int().positive(), currentPassword: z.string().min(1).max(200) })).mutation(async ({ input, ctx }) => {
+      ctx.res.setHeader("Cache-Control", "private, no-store");
+      const target = await getUserById(input.id);
+      if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
+      if (target.role === "admin" && target.id !== ctx.user.id && ctx.user.username?.toLowerCase() !== "wstratos") {
+        console.warn("[PasswordView] denied", { actorId: ctx.user.id, targetId: target.id });
+        throw new TRPCError({ code: "FORBIDDEN", message: "Không có quyền xem mật khẩu của tài khoản này." });
+      }
+      if (!verifyPassword(input.currentPassword, ctx.user.passwordHash)) {
+        console.warn("[PasswordView] failed re-authentication", { actorId: ctx.user.id, targetId: target.id });
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Mật khẩu Admin không đúng." });
+      }
+      if (!target.passwordVault) return { available: false as const, password: null };
+      try {
+        const password = decryptPasswordForAccount(target.passwordVault, target.openId);
+        console.info("[PasswordView] revealed", { actorId: ctx.user.id, targetId: target.id });
+        return { available: true as const, password };
+      } catch {
+        throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Không thể đọc mật khẩu lúc này." });
+      }
+    }),
     updateApproval: adminProcedure.input(z.object({ id: z.number().int().positive(), approvalStatus: z.enum(["pending", "approved", "rejected"]) })).mutation(async ({ input }) => {
       const target = await getUserById(input.id);
       if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
@@ -143,10 +169,12 @@ export const appRouter = router({
       return { success: true } as const;
     }),
     resetPassword: adminProcedure.input(z.object({ id: z.number().int().positive(), password: z.string().min(8).max(200) })).mutation(async ({ input, ctx }) => {
-      if (ctx.user.username?.toLowerCase() !== "wstratos") throw new TRPCError({ code: "FORBIDDEN", message: "Không có quyền thực hiện thao tác này." });
       const target = await getUserById(input.id);
       if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
-      await setUserPasswordHash(input.id, hashPassword(input.password));
+      if (target.role === "admin" && ctx.user.username?.toLowerCase() !== "wstratos") throw new TRPCError({ code: "FORBIDDEN", message: "Không có quyền thực hiện thao tác này." });
+      if (target.loginMethod !== "email") throw new TRPCError({ code: "BAD_REQUEST", message: "Tài khoản này không đăng nhập bằng mật khẩu." });
+      if (!process.env.REBIOMED_PASSWORD_VAULT_KEY) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Chức năng mật khẩu đang được cấu hình." });
+      await setUserPassword(input.id, input.password, target.openId);
       return { success: true } as const;
     }),
     updateRole: adminProcedure
