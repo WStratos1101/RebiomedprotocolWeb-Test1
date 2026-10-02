@@ -4,7 +4,7 @@ import { getFormulaVariables } from "@shared/formulaMath";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { hashPassword, verifyPassword } from "./_core/password";
-import { createCalculatorDraft, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserById, getUserByUsernameOrEmail, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
+import { createCalculatorDraft, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserById, getUserByUsernameOrEmail, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
@@ -131,6 +131,15 @@ export const appRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ có thể thu hồi quyền truy cập của tài khoản User." });
       }
       await updateUserApproval(input.id, "rejected");
+      return { success: true } as const;
+    }),
+    deleteUser: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
+      const target = await getUserById(input.id);
+      if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
+      if (target.role === "admin" || target.username?.toLowerCase() === "wstratos") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ có thể xoá tài khoản User; tài khoản Admin được bảo vệ." });
+      }
+      await deleteUserById(input.id);
       return { success: true } as const;
     }),
     updateRole: adminProcedure

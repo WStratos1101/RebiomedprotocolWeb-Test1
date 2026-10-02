@@ -99,6 +99,18 @@ export async function updateUserApproval(id: number, approvalStatus: "pending" |
   await db.update(users).set({ approvalStatus }).where(eq(users.id, id));
 }
 
+export async function deleteUserById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const target = await getUserById(id);
+  if (!target) return false;
+  if (target.role === "admin" || target.username?.toLowerCase() === "wstratos") {
+    throw new Error("Chỉ có thể xoá tài khoản User; tài khoản Admin được bảo vệ.");
+  }
+  await db.delete(users).where(eq(users.id, id));
+  return true;
+}
+
 const seedProtocols = [
   {
     slug: "pcr-qpcr",

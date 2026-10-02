@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { estimateHeadspaceOxygen, type OxygenDish } from "@/lib/hypoxiaMath";
+import { parseLocaleNumber } from "@/lib/numberInput";
 import "./hypoxia.css";
 
 type NumericInputProps = {
@@ -13,7 +14,7 @@ type NumericInputProps = {
 };
 
 function NumericInput({ label, value, onChange, unit, min = "0", step = "any", hint }: NumericInputProps) {
-  return <label className="hypoxia-field"><span>{label}</span><div className="hypoxia-input"><input type="number" inputMode="decimal" value={value} min={min} step={step} onChange={event => onChange(event.target.value)} /><b>{unit}</b></div>{hint && <small>{hint}</small>}</label>;
+  return <label className="hypoxia-field"><span>{label}</span><div className="hypoxia-input"><input type="text" inputMode="decimal" value={value} min={min} step={step} onChange={event => onChange(event.target.value)} /><b>{unit}</b></div>{hint && <small>{hint}</small>}</label>;
 }
 
 const scientific = (number: number) => number.toExponential(2).replace("e+", " × 10^").replace("e-", " × 10^−");
@@ -42,17 +43,17 @@ export function HypoxiaCalculator() {
       (volumeMode === "dimensions" && [length, width, height].some(value => !value.trim()))) return null;
     return estimateHeadspaceOxygen({
     volume: volumeMode === "direct"
-      ? { mode: "direct", headspaceLiters: Number(headspace) }
-      : { mode: "dimensions", lengthCm: Number(length), widthCm: Number(width), heightCm: Number(height), displacedLiters: Number(displaced) },
-    pressure: Number(pressure),
+      ? { mode: "direct", headspaceLiters: parseLocaleNumber(headspace) }
+      : { mode: "dimensions", lengthCm: parseLocaleNumber(length), widthCm: parseLocaleNumber(width), heightCm: parseLocaleNumber(height), displacedLiters: parseLocaleNumber(displaced) },
+    pressure: parseLocaleNumber(pressure),
     pressureUnit,
     pressureKind,
-    ambientPressure: Number(ambient),
-    temperatureC: Number(temperature),
-    oxygenPercent: Number(oxygen),
-    minimumOxygenPercent: Number(minimumOxygen),
+    ambientPressure: parseLocaleNumber(ambient),
+    temperatureC: parseLocaleNumber(temperature),
+    oxygenPercent: parseLocaleNumber(oxygen),
+    minimumOxygenPercent: parseLocaleNumber(minimumOxygen),
     cultures: cultures.map(({ label, dishes, cellsPerDish, ocr }): OxygenDish => ({
-      label, dishes: Number(dishes), cellsPerDish: Number(cellsPerDish), ocrMoleculesPerCellMinute: Number(ocr),
+      label, dishes: parseLocaleNumber(dishes), cellsPerDish: parseLocaleNumber(cellsPerDish), ocrMoleculesPerCellMinute: parseLocaleNumber(ocr),
     })),
     });
   }, [volumeMode, headspace, length, width, height, displaced, pressure, pressureUnit, pressureKind, ambient, temperature, oxygen, minimumOxygen, cultures]);
@@ -66,7 +67,7 @@ export function HypoxiaCalculator() {
       <section className="content-panel hypoxia-panel"><h3>01 · Thể tích pha khí</h3><div className="hypoxia-switch"><button type="button" className={volumeMode === "direct" ? "active" : ""} onClick={() => setVolumeMode("direct")}>Nhập headspace</button><button type="button" className={volumeMode === "dimensions" ? "active" : ""} onClick={() => setVolumeMode("dimensions")}>Dài × rộng × cao</button></div>
         {volumeMode === "direct" ? <NumericInput label="Thể tích khí thực" value={headspace} onChange={setHeadspace} unit="L" hint="Không gồm môi trường lỏng, đĩa và vật chiếm chỗ." /> : <div className="hypoxia-fields"><NumericInput label="Dài" value={length} onChange={setLength} unit="cm" /><NumericInput label="Rộng" value={width} onChange={setWidth} unit="cm" /><NumericInput label="Cao" value={height} onChange={setHeight} unit="cm" /><NumericInput label="Thể tích vật/lỏng chiếm chỗ" value={displaced} onChange={setDisplaced} unit="L" min="0" /></div>}
       </section>
-      <section className="content-panel hypoxia-panel"><h3>02 · Trạng thái khí</h3><div className="hypoxia-fields"><NumericInput label="Áp suất đo" value={pressure} onChange={setPressure} unit={pressureUnit} min={pressureKind === "gauge" ? "-1000" : "0"} /><label className="hypoxia-field"><span>Kiểu áp suất</span><select value={pressureKind} onChange={event => { const next = event.target.value as "absolute" | "gauge"; if (next !== pressureKind) { setPressure(value => String(Number(value) + (next === "gauge" ? -Number(ambient) : Number(ambient)))); setPressureKind(next); } }}><option value="absolute">Tuyệt đối</option><option value="gauge">Gauge (tương đối)</option></select></label><label className="hypoxia-field"><span>Đơn vị áp suất</span><select value={pressureUnit} onChange={event => { const next = event.target.value as "atm" | "kPa"; if (next !== pressureUnit) { setPressure(value => String(Number(value) * (next === "kPa" ? 101.325 : 1 / 101.325))); setAmbient(value => String(Number(value) * (next === "kPa" ? 101.325 : 1 / 101.325))); setPressureUnit(next); } }}><option value="atm">atm</option><option value="kPa">kPa</option></select></label>{pressureKind === "gauge" && <NumericInput label="Áp suất môi trường" value={ambient} onChange={setAmbient} unit={pressureUnit} hint="P tuyệt đối = P gauge + P môi trường." />}<NumericInput label="Nhiệt độ" value={temperature} onChange={setTemperature} unit="°C" min="-273.14" /><NumericInput label="O₂ ban đầu" value={oxygen} onChange={setOxygen} unit="%" /><NumericInput label="Ngưỡng O₂ pha khí" value={minimumOxygen} onChange={setMinimumOxygen} unit="%" min="0" hint="Ngưỡng để ước tính, không phải pO₂ ở tế bào." /></div></section>
+      <section className="content-panel hypoxia-panel"><h3>02 · Trạng thái khí</h3><div className="hypoxia-fields"><NumericInput label="Áp suất đo" value={pressure} onChange={setPressure} unit={pressureUnit} min={pressureKind === "gauge" ? "-1000" : "0"} /><label className="hypoxia-field"><span>Kiểu áp suất</span><select value={pressureKind} onChange={event => { const next = event.target.value as "absolute" | "gauge"; if (next !== pressureKind) { setPressure(value => String(parseLocaleNumber(value) + (next === "gauge" ? -parseLocaleNumber(ambient) : parseLocaleNumber(ambient)))); setPressureKind(next); } }}><option value="absolute">Tuyệt đối</option><option value="gauge">Gauge (tương đối)</option></select></label><label className="hypoxia-field"><span>Đơn vị áp suất</span><select value={pressureUnit} onChange={event => { const next = event.target.value as "atm" | "kPa"; if (next !== pressureUnit) { setPressure(value => String(parseLocaleNumber(value) * (next === "kPa" ? 101.325 : 1 / 101.325))); setAmbient(value => String(parseLocaleNumber(value) * (next === "kPa" ? 101.325 : 1 / 101.325))); setPressureUnit(next); } }}><option value="atm">atm</option><option value="kPa">kPa</option></select></label>{pressureKind === "gauge" && <NumericInput label="Áp suất môi trường" value={ambient} onChange={setAmbient} unit={pressureUnit} hint="P tuyệt đối = P gauge + P môi trường." />}<NumericInput label="Nhiệt độ" value={temperature} onChange={setTemperature} unit="°C" min="-273.14" /><NumericInput label="O₂ ban đầu" value={oxygen} onChange={setOxygen} unit="%" /><NumericInput label="Ngưỡng O₂ pha khí" value={minimumOxygen} onChange={setMinimumOxygen} unit="%" min="0" hint="Ngưỡng để ước tính, không phải pO₂ ở tế bào." /></div></section>
     </div>
     <section className="content-panel hypoxia-panel"><div className="hypoxia-row"><div><h3>03 · Tiêu thụ O₂ của tế bào</h3><p>Thêm nhóm khi số đĩa, tế bào/đĩa hoặc OCR khác nhau; nhu cầu được cộng toàn hệ.</p></div><button type="button" className="hypoxia-add" onClick={() => setCultures(current => [...current, { id: Date.now() + Math.random(), label: `Nhóm ${current.length + 1}`, dishes: "1", cellsPerDish: "100000", ocr: "3.8e8" }])}>+ Thêm nhóm đĩa</button></div>
       {cultures.map((culture, index) => <div className="hypoxia-culture" key={culture.id}><div className="hypoxia-row"><strong>Nhóm {index + 1}</strong>{cultures.length > 1 && <button type="button" className="hypoxia-remove" onClick={() => setCultures(current => current.filter(item => item.id !== culture.id))}>Xóa nhóm</button>}</div><div className="hypoxia-fields"><label className="hypoxia-field"><span>Loại tế bào / ghi chú</span><input value={culture.label} onChange={event => setCulture(culture.id, "label", event.target.value)} /></label><NumericInput label="Số đĩa" value={culture.dishes} onChange={value => setCulture(culture.id, "dishes", value)} unit="đĩa" step="1" /><NumericInput label="Tế bào / đĩa" value={culture.cellsPerDish} onChange={value => setCulture(culture.id, "cellsPerDish", value)} unit="cell" step="1" /><NumericInput label="OCR / tế bào / phút" value={culture.ocr} onChange={value => setCulture(culture.id, "ocr", value)} unit="phân tử" hint="Ưu tiên OCR đo trên chính tế bào nuôi." /></div><label className="hypoxia-field hypoxia-preset"><span>Mốc OCR để tham khảo (có thể sửa trực tiếp)</span><select value="" onChange={event => { if (event.target.value) setCulture(culture.id, "ocr", event.target.value); }}><option value="">Chọn mốc tham khảo…</option><option value="3.8e8">HSC sơ cấp yên lặng: ≈3,80×10⁸</option><option value="1.84e9">HSC hoạt hóa: ≈1,84×10⁹</option><option value="9.03e9">9,03×10⁹ — giả định người dùng, chưa kiểm chứng</option></select></label></div>)}
