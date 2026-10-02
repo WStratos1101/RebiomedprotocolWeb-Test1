@@ -65,6 +65,13 @@ export async function getUserByEmail(email: string) {
   return result[0];
 }
 
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result[0];
+}
+
 export async function getUserByUsernameOrEmail(identifier: string) {
   const db = await getDb();
   if (!db) return undefined;
@@ -85,6 +92,10 @@ export async function createEmailUser(input: { username: string; email: string; 
 export async function updateUserApproval(id: number, approvalStatus: "pending" | "approved" | "rejected") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
+  const target = await getUserById(id);
+  if (target?.username?.toLowerCase() === "wstratos" && approvalStatus !== "approved") {
+    throw new Error("Tài khoản Wstratos là Admin hệ thống và không thể bị thu hồi quyền truy cập.");
+  }
   await db.update(users).set({ approvalStatus }).where(eq(users.id, id));
 }
 
@@ -287,6 +298,10 @@ export async function listTeamMembers() {
 export async function updateUserRole(id: number, role: "admin" | "user") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
+  const target = await getUserById(id);
+  if (target?.username?.toLowerCase() === "wstratos" && role !== "admin") {
+    throw new Error("Tài khoản Wstratos luôn phải giữ quyền Admin.");
+  }
   await db.update(users).set({ role }).where(eq(users.id, id));
 }
 
