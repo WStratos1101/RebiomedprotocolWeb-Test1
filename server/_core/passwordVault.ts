@@ -1,16 +1,14 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
 const KEY_NAME = "REBIOMED_PASSWORD_VAULT_KEY";
 const VERSION = "v1";
 
 function encryptionKey(): Buffer {
-  const encoded = process.env[KEY_NAME];
-  if (!encoded) throw new Error("Password vault key is not configured");
-  const key = Buffer.from(encoded, "base64");
-  if (key.length !== 32 || key.toString("base64").replace(/=+$/, "") !== encoded.replace(/=+$/, "")) {
-    throw new Error("Password vault key must be 32 random bytes encoded in base64");
-  }
-  return key;
+  const code = process.env[KEY_NAME]?.trim();
+  if (!code) throw new Error("Password vault key is not configured");
+  // Use only the one protected code supplied by the owner; SHA-256 deterministically
+  // expands it to the 32-byte AES-256 key required by the vault.
+  return createHash("sha256").update(code, "utf8").digest();
 }
 
 /** Bind ciphertext to the account's immutable openId so it cannot be swapped between accounts. */

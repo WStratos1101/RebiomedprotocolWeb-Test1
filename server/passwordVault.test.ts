@@ -22,13 +22,15 @@ describe("password vault", () => {
   it("rejects swapped, corrupted, or unavailable ciphertext", () => {
     const sealed = encryptPasswordForAccount("SufficientlyLong!", "account-1");
     expect(() => decryptPasswordForAccount(sealed, "account-2")).toThrow();
-    expect(() => decryptPasswordForAccount(sealed.slice(0, -1) + (sealed.endsWith("a") ? "b" : "a"), "account-1")).toThrow();
+    const [version, nonce, encrypted, tag] = sealed.split(".");
+    const corrupted = [version, nonce, encrypted, (tag[0] === "a" ? "b" : "a") + tag.slice(1)].join(".");
+    expect(() => decryptPasswordForAccount(corrupted, "account-1")).toThrow();
     delete process.env[keyName];
     expect(() => encryptPasswordForAccount("another", "account-1")).toThrow("not configured");
     expect(() => decryptPasswordForAccount(sealed, "account-1")).toThrow("not configured");
-    process.env[keyName] = Buffer.alloc(32, 18).toString("base64");
+    process.env[keyName] = "different-code";
     expect(() => decryptPasswordForAccount(sealed, "account-1")).toThrow();
     process.env[keyName] = "not-a-valid-key";
-    expect(() => encryptPasswordForAccount("another", "account-1")).toThrow("32 random bytes");
+    expect(() => encryptPasswordForAccount("another", "account-1")).not.toThrow();
   });
 });
