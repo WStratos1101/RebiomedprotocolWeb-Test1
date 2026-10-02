@@ -35,3 +35,11 @@
 .history-row .icon-button { flex: 0 0 auto; }
 @media (max-width: 760px) { .calculator-layout { grid-template-columns: minmax(0, 1fr); } }
 .calc-form-card > .field-label select { min-width: 150px; }
+.editor-panel .field-label select { display: block; width: 100%; margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); color: var(--ink); font-size: 12px; }
+.editor-panel .field-label small { display: block; margin-top: 7px; color: var(--muted); font: 10px/1.5 "DM Sans",sans-serif; }
+.calculator-picker { display: flex; flex-wrap: wrap; gap: 7px; margin: -10px 0 20px; }
+.calculator-picker button { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); color: var(--muted); font-size: 11px; }
+.calculator-picker button.active { border-color: var(--teal); background: var(--teal-light); color: var(--teal); font-weight: 650; }
+.special-subnav { display: grid; gap: 2px; margin: 0 0 8px 28px; padding-left: 13px; border-left: 1px solid #cbd8d1; }
+.special-subnav button { width: 100%; padding: 6px 8px; border: 0; border-radius: 5px; background: transparent; color: #708078; text-align: left; font-size: 11px; }
+.special-subnav button:hover, .special-subnav button.active { background: var(--teal-light); color: var(--teal); font-weight: 650; }

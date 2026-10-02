@@ -173,6 +173,7 @@ const seedCalculators = [
   { slug: "manual-cell-count", name: "Đếm tế bào bằng buồng đếm thủ công", category: "Cell counting", formula: "(TB trung bình / ô) × hệ số pha loãng × 10⁴", description: "Tính mật độ tế bào từ số tế bào đếm được trong buồng đếm thủ công.", config: { inputs: ["averageCells", "countedSquares", "dilutionFactor"], units: { averageCells: "cells", countedSquares: "ô", dilutionFactor: "×" } } },
   { slug: "cells-needed", name: "Tính số lượng tế bào cần", category: "Cell seeding", formula: "Mật độ mục tiêu × số đơn vị × thể tích / đơn vị", description: "Tính tổng số tế bào cần chuẩn bị cho các giếng hoặc đơn vị nuôi cấy.", config: { inputs: ["targetDensity", "unitCount", "volumePerUnit"], units: { targetDensity: "cells/mL", unitCount: "đơn vị", volumePerUnit: "mL" } } },
   { slug: "volume-to-take", name: "Tính thể tích cần lấy", category: "Cell seeding", formula: "V lấy = N mong muốn / N tổng × V tổng", description: "Tính thể tích cần hút từ suspension hiện có để thu được số tế bào mong muốn.", config: { inputs: ["desiredCells", "totalCells", "totalVolume"], units: { desiredCells: "cells", totalCells: "cells", totalVolume: "mL" } } },
+  { slug: "hypoxia-headspace", name: "Ước tính O₂ pha khí hệ kín", category: "Hypoxia", formula: "n(O₂) = P tuyệt đối × V khí × %O₂ / (R × T)", description: "Ước tính lượng O₂ pha khí và thời gian đến ngưỡng giả định; không thay cho đo oxy tại tế bào.", config: { model: "ideal-gas-headspace", reference: "https://www.mdpi.com/2073-4409/9/11/2456" } },
 ];
 
 const seedRuns = [
@@ -215,11 +216,11 @@ export async function getLabContent() {
   return { protocols: protocolRows, samples: sampleRows, calculators: calculatorRows, runs: runRows };
 }
 
-export async function createProtocolDraft(input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string }[] }) {
+export async function createProtocolDraft(input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure"; steps?: { title: string; detail: string; time: string }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-  await db.insert(protocols).values({ slug, title: input.title, category: "Custom", tag: "New protocol", status: "Bản nháp", version: "v0.1", owner: input.owner, summary: input.summary || "Nội dung mới được thêm vào kho LabVault.", duration: "Chưa cập nhật", steps: input.steps?.length ? input.steps : [{ title: "Bắt đầu biên soạn", detail: input.summary || "Thêm hướng dẫn chi tiết cho bước này.", time: "—" }], notes: ["Bản nháp — cần review trước khi sử dụng trong thực nghiệm."] });
+  await db.insert(protocols).values({ slug, title: input.title, category: input.category ?? "Custom", tag: input.category === "Hypoxia" ? "Hypoxia" : input.category === "HighPressure" ? "High pressure" : "New protocol", status: "Bản nháp", version: "v0.1", owner: input.owner, summary: input.summary || "Nội dung mới được thêm vào kho LabVault.", duration: "Chưa cập nhật", steps: input.steps?.length ? input.steps : [{ title: "Bắt đầu biên soạn", detail: input.summary || "Thêm hướng dẫn chi tiết cho bước này.", time: "—" }], notes: ["Bản nháp — cần review trước khi sử dụng trong thực nghiệm."] });
 }
 
 export async function createSampleDraft(input: { name: string; description: string }) {
@@ -229,11 +230,11 @@ export async function createSampleDraft(input: { name: string; description: stri
   await db.insert(samples).values({ code, name: input.name, groupName: "Bản nháp", status: "Bản nháp", description: input.description || "Mẫu mới được thêm vào kho LabVault.", properties: [{ label: "Trạng thái", value: "Chưa cập nhật" }], theory: input.description || "Bổ sung lý thuyết và dữ liệu tham chiếu cho mẫu này." });
 }
 
-export async function createCalculatorDraft(input: { name: string; formula: string; description: string }) {
+export async function createCalculatorDraft(input: { name: string; formula: string; description: string; category?: "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-  await db.insert(calculators).values({ slug, name: input.name, category: "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong LabVault.", config: { inputs: ["valueA", "valueB"], units: { valueA: "", valueB: "" } }, active: 1 });
+  await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong LabVault.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "" }, active: 1 });
 }
 
 export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string }[] }) {

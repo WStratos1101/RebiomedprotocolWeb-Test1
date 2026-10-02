@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { getFormulaVariables } from "@shared/formulaMath";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { createCalculatorDraft, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, getLabContent, listTeamMembers, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserRole } from "./db";
@@ -18,15 +20,25 @@ export const appRouter = router({
   content: router({
     all: publicProcedure.query(() => getLabContent()),
     createDraft: publicProcedure
-      .input(z.object({ kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80) })).optional() }))
+      .input(z.object({ kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), category: z.enum(["Custom", "Hypoxia", "HighPressure"]).default("Custom"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80) })).optional() }))
       .mutation(async ({ input }) => {
-        if (input.kind === "protocol") await createProtocolDraft({ title: input.title, summary: input.body, owner: input.owner, steps: input.steps });
+        if (input.kind === "protocol") await createProtocolDraft({ title: input.title, summary: input.body, owner: input.owner, category: input.category, steps: input.steps });
         else await createSampleDraft({ name: input.title, description: input.body });
         return { success: true } as const;
       }),
     createCalculator: publicProcedure
-      .input(z.object({ name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default("") }))
-      .mutation(async ({ input }) => { await createCalculatorDraft(input); return { success: true } as const; }),
+      .input(z.object({ name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), category: z.enum(["Custom", "Hypoxia", "HighPressure"]).default("Custom"), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default("") }))
+      .mutation(async ({ input }) => {
+        try {
+          const variables = getFormulaVariables(input.formula);
+          if (variables.length === 0 || variables.length > 8) throw new Error("Công thức cần từ 1 đến 8 biến.");
+          if (Object.keys(input.inputUnits).some(variable => !variables.includes(variable))) throw new Error("Đơn vị đầu vào không khớp với biến trong công thức.");
+        } catch (error) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Công thức không hợp lệ." });
+        }
+        await createCalculatorDraft(input);
+        return { success: true } as const;
+      }),
     updateDraft: publicProcedure
       .input(z.object({ id: z.number().int().positive(), kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80) })).optional() }))
       .mutation(async ({ input }) => {
