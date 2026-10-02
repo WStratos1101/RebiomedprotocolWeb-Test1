@@ -1,14 +1,14 @@
-# LabVault — Kho quy trình thí nghiệm private
+# Rebiomed Protocol
 
-React / Express / tRPC / Drizzle starter, adapted from the Sandbox web-db-user template.
+Website tra cứu và biên soạn quy trình, tài liệu mẫu và công cụ tính cho thí nghiệm nghiên cứu y sinh. Nội dung hiện được xem và chỉnh sửa công khai, không cần đăng nhập; chỉ xuất bản nếu phạm vi truy cập này là chủ đích.
 
-- `pnpm dev`: development server; honors `PORT` (default 3000).
-- `pnpm build` / `pnpm start`: build and serve `dist/index.js` and `dist/public/`.
-- `pnpm db:migrate`: apply checked-in migrations. `pnpm db:push`: generate and apply new schema changes.
-- `pnpm check` / `pnpm test`: types and application tests.
+## Chạy dự án
 
-Start with the Webdev skill's default-template guide. Platform login, storage, payments and service contracts live in its shared references; read the relevant capability before extending its helper.
+- `pnpm dev`: máy chủ phát triển trên cổng `PORT` (mặc định 3000).
+- `pnpm check` và `pnpm test`: kiểm tra TypeScript và unit tests.
+- `pnpm build` và `pnpm start`: build rồi phục vụ `dist/index.js` cùng `dist/public/`.
+- `pnpm db:migrate`: áp dụng migrations đã commit; `pnpm db:push`: tạo và áp dụng thay đổi schema.
 
-`server/_core/publicConfig.ts` exposes only named public runtime values. Private keys stay server-side. The platform serves managed `/manus-storage/` assets; the application does not register a second proxy.
+Ứng dụng dùng React, Express, tRPC, Drizzle và managed MySQL. Quy trình, mẫu và công thức tính được lưu trong database; dev và bản xuất bản dùng chung dữ liệu. Công cụ Hypoxia chỉ ước tính ngân sách O₂ pha khí và không thể thay thế đo oxy tại lớp tế bào.
 
-Platform configuration is readable and editable through `webdev.config`. Default settings are initial values, not enforced constraints. The agent may modify the files, commands and configuration or follow the flexible guide for another stack.
+`server/_core/publicConfig.ts` chỉ công bố các giá trị runtime dành cho frontend; không đưa secrets vào bundle. Cấu hình project được quản lý qua `webdev.config`.

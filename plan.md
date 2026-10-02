@@ -1,75 +1,36 @@
-# Kế hoạch triển khai LabVault
+# Kế hoạch triển khai Rebiomed Protocol
 
 ## Phạm vi sản phẩm
-LabVault là kho nội bộ private cho phòng thí nghiệm: tập trung quy trình thí nghiệm, thông tin mẫu, lý thuyết nền, hướng dẫn chi tiết và các công cụ tính số liệu. Khu vực quản trị cho phép chủ website cập nhật nội dung mà không cần sửa mã nguồn.
+
+Rebiomed Protocol là kho quy trình thí nghiệm, tài liệu mẫu và công cụ tính cho nghiên cứu y sinh. Website hiển thị và cho phép chỉnh sửa nội dung mà không cần đăng nhập theo yêu cầu hiện hành. Trang thí nghiệm điều kiện đặc trưng phân loại Nuôi cấy Hypoxia và Nuôi cấy áp suất cao.
 
 ## Quyết định triển khai
-- **Stack:** starter React/Express/tRPC/Drizzle với server và managed MySQL đã bật.
-- **Truy cập:** dùng Manus OAuth và session starter; nội dung app yêu cầu đăng nhập. Vai trò `admin` là chủ website, các tài khoản còn lại là người dùng được cấp quyền đọc.
-- **Dữ liệu:** thêm các bảng `protocols`, `samples`, `calculators`, `activityLog` theo schema Drizzle; CRUD qua tRPC, seed dữ liệu mẫu ở lớp query để UI có nội dung usable ngay cả khi database đang rỗng.
-- **Tính toán:** calculator đầu tiên là pha loãng nồng độ `C1V1 = C2V2`, có kiểm tra số dương, đơn vị hiển thị rõ và lịch sử tính cục bộ theo phiên; cấu trúc công thức mở rộng được lưu trong bảng calculators.
-- **MVP UX:** dashboard điều hướng một trang với các view `Tổng quan`, `Quy trình`, `Mẫu & lý thuyết`, `Công cụ tính`, `Quản trị`. Bộ lọc và tìm kiếm hoạt động tại client trên dataset lấy từ tRPC.
-- **Private posture:** không dùng hình ảnh trang trí hay nội dung public; có banner trạng thái private, logout, và chỉ render admin actions khi user có role admin.
 
-## Design system
-### Design Movement
-**Swiss laboratory editorial** — sự chính xác của sổ tay phòng thí nghiệm kết hợp editorial dashboard hiện đại: nhiều khoảng thở, đường kẻ mảnh, nhấn vào thứ bậc thông tin.
+- **Stack và serving:** React/Vite ở frontend; Express/tRPC và Drizzle/managed MySQL ở backend. Dev dùng cổng 3000; build tạo `dist/public` và `dist/index.js`. Preview/public dùng URL tương đối.
+- **Truy cập:** các view, CRUD quy trình và công cụ tính là public; không giả định còn vai trò đăng nhập bảo vệ nội dung. Đây là chủ ý sản phẩm, không phải ranh giới bảo mật.
+- **Dữ liệu:** quy trình, mẫu và calculator được lưu bền vững trong MySQL; category hiện có phân nhóm quy trình và tool theo điều kiện đặc trưng, không cần thêm cột mới. Seed nội dung mới theo slug, tôn trọng tool đã bị vô hiệu hóa.
+- **Công cụ tính:** công cụ tế bào có quy đổi đơn vị theo từng phép tính. Công thức tùy chỉnh dùng parser số học giới hạn, sinh ô nhập từ tên biến và lưu nhãn đơn vị nhưng không tự xác thực thứ nguyên hay quy đổi đơn vị.
+- **Hypoxia:** tính O₂ pha khí hệ kín từ thể tích headspace, áp suất tuyệt đối/gauge, nhiệt độ, %O₂ và nhu cầu OCR của nhiều nhóm đĩa. Thời gian tới ngưỡng O₂ là tình huống giả định lý tưởng (V/T không đổi, O₂ rời pha khí và không có khí thay thế); không đưa ra lịch bơm khí an toàn. UI cảnh báo giới hạn khuếch tán qua môi trường, oxy tại lớp tế bào, CO₂, pH và yêu cầu đo thực tế.
 
-### Core Principles
-1. **Tra cứu trước, trang trí sau:** nội dung, trạng thái và hành động luôn rõ ràng hơn ornament.
-2. **Chính xác có thể kiểm chứng:** thông số, đơn vị, version và ngày cập nhật xuất hiện gần nội dung.
-3. **Nhịp điệu phòng lab:** nhãn uppercase nhỏ, đường kẻ, số thứ tự và chip trạng thái tạo cảm giác quy trình.
-4. **Một tay vận hành:** sidebar cố định, thao tác quan trọng nằm trong tầm nhìn và có phản hồi tức thì.
+## Thiết kế
 
-### Color Philosophy
-Nền `#F5F4EF` như giấy archival, ink `#18221F` cho độ tương phản, teal đậm `#0D5C63` là **signature brand color** gợi glassware và kiểm soát quy trình. Amber `#C9822B` chỉ dành cho cảnh báo/điểm cần chú ý; xanh sage và xanh dương nhạt dùng cho trạng thái an toàn, không cạnh tranh với nội dung.
-
-### Layout Paradigm
-Bố cục **rail + canvas**: sidebar trái như mục lục sổ tay, canvas chính rộng với header context và các panel lệch nhịp; tránh mọi thứ nằm trong grid trung tâm đều nhau. Dashboard có một vùng “signal strip” ngang để đọc nhanh chỉ số trước khi đi vào danh sách.
-
-### Signature Elements
-- Wordmark có biểu tượng `LV` dạng hai vạch song song như giá đỡ ống nghiệm.
-- Các panel dùng viền hairline, góc bo vừa phải và thanh màu teal 3px bên trái cho nội dung quan trọng.
-- Số bước quy trình là vòng tròn outline + đường nối dọc, tạo cảm giác thao tác tuần tự.
-
-### Interaction Philosophy
-Tương tác phản ánh sự cẩn trọng: click vào card mở detail; filter/search cập nhật tức thì; calculator không cho ra kết quả nếu thiếu hoặc sai đơn vị; admin save có toast xác nhận và timestamp.
-
-### Animation
-Chỉ dùng chuyển động nhẹ: sidebar/view fade-slide 160ms, hover nâng card 2px, progress bar của step chạy 240ms. Không autoplay, không parallax, không animation làm phân tán thao tác số liệu.
-
-### Typography System
-- **Display:** `DM Sans` cho tiêu đề, số liệu, nhãn điều hướng; hình học và rõ ở kích thước lớn.
-- **Body/technical:** `IBM Plex Mono` cho mã quy trình, công thức, đơn vị, metadata kỹ thuật; `DM Sans` cho đoạn đọc.
-- Hierarchy: eyebrow 11px uppercase tracking rộng; title 30–40px; section 16px semibold; body 14px/1.6; metadata 11–12px.
-
-### Brand Essence
-**Kho tri thức thí nghiệm riêng tư giúp đội ngũ phòng lab làm đúng, nhanh và có căn cứ.**
-Tính cách: **điềm tĩnh, chính xác, thực dụng**.
-
-### Brand Voice
-- Headline: “Kiến thức đúng chỗ. Thao tác đúng nhịp.”
-- CTA/microcopy: “Mở quy trình”, “Tính lại với đơn vị khác”, “Lưu thay đổi vào kho”.
-
-### Wordmark & Logo
-Biểu tượng `LV` tối giản từ hai vạch dọc teal và một đường nối ngang, đặt cạnh chữ `labvault` lowercase. Dùng chữ và motif trong UI, không cần asset ảnh ngoài.
+- **Design Movement:** Swiss laboratory editorial — dạng sổ tay phòng lab với dashboard hiện đại, nhấn vào thứ bậc thông tin và khoảng thở.
+- **Core Principles:** tra cứu trước trang trí; số liệu có đơn vị và nguồn; quy trình theo bước; thao tác được phản hồi rõ.
+- **Color Philosophy:** nền giấy `#F5F4EF`, ink `#18221F`, teal đặc trưng `#0D5C63` gợi thiết bị thủy tinh và độ tin cậy; amber `#C9822B` dùng cho cảnh báo.
+- **Layout Paradigm:** sidebar như mục lục bên trái, canvas rộng bên phải; khối nội dung lệch nhịp thay vì một lưới đều ở giữa.
+- **Signature Elements:** nhãn kỹ thuật uppercase, panel viền hairline, số bước quy trình dạng vòng tròn nối dọc.
+- **Interaction Philosophy:** click mở chi tiết, chọn nhóm điều kiện nhanh, nhập/xóa có phản hồi rõ; xóa công thức và lịch sử yêu cầu hai lần xác nhận.
+- **Animation:** fade nhẹ khi đổi view, hover nâng card 2px; không autoplay hoặc hiệu ứng làm phân tán việc đọc số liệu.
+- **Typography:** DM Sans cho nội dung/điều hướng, IBM Plex Mono cho công thức, số và metadata; tiêu đề 30–40px, body 14px/1.6.
+- **Brand Essence:** Rebiomed Protocol giúp đội ngũ nghiên cứu ghi chép và tính toán ngay bên cạnh quy trình; điềm tĩnh, chính xác, thực dụng.
+- **Brand Voice:** ngắn gọn, có tính thao tác. Ví dụ: “Mở quy trình”; “Kiểm tra O₂ thực tế trước khi quyết định thay khí”.
+- **Wordmark & Logo:** mark `RP` trên nền teal, bên cạnh chữ “Rebiomed Protocol”. Màu nhận diện là teal `#0D5C63`.
 
 ## Cấu trúc project
-- `client/src/App.tsx`: routing và shell dashboard.
-- `client/src/pages/Home.tsx`: dashboard view, mock/seed content, search/filter, calculator và admin forms.
-- `client/src/index.css`: design tokens, layout, cards, typography, responsive rules.
-- `server/routers.ts`: tRPC procedures cho auth, protocols, samples, calculators và admin mutations.
-- `server/db.ts`: query helpers và kết nối Drizzle.
-- `drizzle/schema.ts`: users và các bảng domain.
-- `public/manus-routes.json`: manifest route `/` và `/404`.
-- `app.config.ts`: logo metadata cho project.
 
-## Serving
-Dev dùng `pnpm dev` trên port 3000 và host `0.0.0.0`. Preview/public routes giữ relative; `/api/health` phục vụ readiness. Database migration được commit cùng schema; không ghi secrets vào frontend.
-
-
-## Bổ sung phạm vi 02/10/2026
-- **Phân quyền:** chuẩn hóa role app thành `admin`, `researcher`, `viewer` (giữ `user` cũ để tương thích); Admin quản lý nội dung và thành viên, Researcher tạo/chỉnh sửa bản nháp và chạy calculator, Viewer chỉ tra cứu.
-- **Công thức:** hiển thị thư viện công thức gồm pha loãng, cell viability và molarity → mass; calculator có đầu vào, đơn vị, kiểm tra số dương và lịch sử phiên.
-- **Trực quan hóa:** dashboard thêm biểu đồ xu hướng Ct/efficiency theo run từ dữ liệu thực nghiệm mẫu đã được gắn nhãn rõ là internal run data, không dùng dữ liệu ngẫu nhiên.
-- **Bảng điều khiển:** khu vực Owner Console có inventory nội dung và bảng thành viên để đổi role theo mô hình quyền nêu trên.
+- `client/src/pages/Home.tsx`: shell, điều hướng, editor quy trình/nội dung và calculator có sẵn.
+- `client/src/components/SpecialExperimentsView.tsx`: hai nhánh điều kiện, danh mục quy trình và tool.
+- `client/src/components/HypoxiaCalculator.tsx`, `client/src/lib/hypoxiaMath.ts`: form và hàm tính pha khí thuần, có test tương ứng.
+- `client/src/components/CustomCalculator.tsx`, `shared/formulaMath.ts`: tính công thức tùy chỉnh bằng parser, không chạy mã tùy ý.
+- `server/routers.ts`, `server/db.ts`: API và thao tác managed MySQL.
+- `client/index.html`, `client/public/manus-routes.json`, `app.config.ts`: metadata tên website, route manifest và logo project.

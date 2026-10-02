@@ -43,3 +43,4 @@
 .special-subnav { display: grid; gap: 2px; margin: 0 0 8px 28px; padding-left: 13px; border-left: 1px solid #cbd8d1; }
 .special-subnav button { width: 100%; padding: 6px 8px; border: 0; border-radius: 5px; background: transparent; color: #708078; text-align: left; font-size: 11px; }
 .special-subnav button:hover, .special-subnav button.active { background: var(--teal-light); color: var(--teal); font-weight: 650; }
+.brand-lockup .brand-name { min-width: 0; font-size: 16px; line-height: 1.1; letter-spacing: -.045em; }

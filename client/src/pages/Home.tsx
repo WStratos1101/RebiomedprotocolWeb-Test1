@@ -265,7 +265,7 @@ export default function Home() {
     <div className="app-shell">
       <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
         <div className="sidebar-top">
-          <div className="brand-lockup"><span className="brand-mark">LV</span><span>labvault</span></div>
+          <div className="brand-lockup"><span className="brand-mark">RP</span><span className="brand-name">Rebiomed Protocol</span></div>
           <button className="mobile-close" onClick={() => setMobileNav(false)} aria-label="Đóng menu"><X size={18} /></button>
           <div className="workspace-badge"><span className="status-dot" /> PUBLIC LAB WORKSPACE <span className="workspace-code">#07</span></div>
         </div>
@@ -281,7 +281,7 @@ export default function Home() {
       {mobileNav && <button className="mobile-overlay" onClick={() => setMobileNav(false)} aria-label="Đóng menu" />}
 
       <main className="main-canvas">
-        <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20} /></button><div className="breadcrumb"><span>LabVault</span><ChevronRight size={13} /><strong>{currentView?.label}</strong></div></div><div className="topbar-actions"><div className="global-search"><Search size={15} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm quy trình, mẫu, chủ đề…" /><kbd>⌘ K</kbd></div><div className="topbar-avatar"><UserAvatar name={user?.name} /></div></div></header>
+        <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20} /></button><div className="breadcrumb"><span>Rebiomed Protocol</span><ChevronRight size={13} /><strong>{currentView?.label}</strong></div></div><div className="topbar-actions"><div className="global-search"><Search size={15} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm quy trình, mẫu, chủ đề…" /><kbd>⌘ K</kbd></div><div className="topbar-avatar"><UserAvatar name={user?.name} /></div></div></header>
         <div className="page-wrap">
           {view === "overview" && <Overview userName={user?.name} role={role} protocols={protocols} samples={samples} runs={runs} openProtocol={openProtocol} openSample={openSample} setView={setView} />}
           {view === "protocols" && <ProtocolsView protocols={filteredProtocols} selected={selectedProtocol} setSelected={setSelectedProtocol} openProtocol={openProtocol} onEdit={editProtocol} onDelete={handleDeleteProtocol} onCreate={() => startCreateProtocol()} canEdit={canEdit} canDelete={isAdmin} search={search} />}

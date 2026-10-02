@@ -220,21 +220,21 @@ export async function createProtocolDraft(input: { title: string; summary: strin
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-  await db.insert(protocols).values({ slug, title: input.title, category: input.category ?? "Custom", tag: input.category === "Hypoxia" ? "Hypoxia" : input.category === "HighPressure" ? "High pressure" : "New protocol", status: "Bản nháp", version: "v0.1", owner: input.owner, summary: input.summary || "Nội dung mới được thêm vào kho LabVault.", duration: "Chưa cập nhật", steps: input.steps?.length ? input.steps : [{ title: "Bắt đầu biên soạn", detail: input.summary || "Thêm hướng dẫn chi tiết cho bước này.", time: "—" }], notes: ["Bản nháp — cần review trước khi sử dụng trong thực nghiệm."] });
+  await db.insert(protocols).values({ slug, title: input.title, category: input.category ?? "Custom", tag: input.category === "Hypoxia" ? "Hypoxia" : input.category === "HighPressure" ? "High pressure" : "New protocol", status: "Bản nháp", version: "v0.1", owner: input.owner, summary: input.summary || "Nội dung mới được thêm vào kho Rebiomed Protocol.", duration: "Chưa cập nhật", steps: input.steps?.length ? input.steps : [{ title: "Bắt đầu biên soạn", detail: input.summary || "Thêm hướng dẫn chi tiết cho bước này.", time: "—" }], notes: ["Bản nháp — cần review trước khi sử dụng trong thực nghiệm."] });
 }
 
 export async function createSampleDraft(input: { name: string; description: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const code = `NEW-${Date.now()}`;
-  await db.insert(samples).values({ code, name: input.name, groupName: "Bản nháp", status: "Bản nháp", description: input.description || "Mẫu mới được thêm vào kho LabVault.", properties: [{ label: "Trạng thái", value: "Chưa cập nhật" }], theory: input.description || "Bổ sung lý thuyết và dữ liệu tham chiếu cho mẫu này." });
+  await db.insert(samples).values({ code, name: input.name, groupName: "Bản nháp", status: "Bản nháp", description: input.description || "Mẫu mới được thêm vào kho Rebiomed Protocol.", properties: [{ label: "Trạng thái", value: "Chưa cập nhật" }], theory: input.description || "Bổ sung lý thuyết và dữ liệu tham chiếu cho mẫu này." });
 }
 
 export async function createCalculatorDraft(input: { name: string; formula: string; description: string; category?: "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-  await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong LabVault.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "" }, active: 1 });
+  await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "" }, active: 1 });
 }
 
 export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string }[] }) {
