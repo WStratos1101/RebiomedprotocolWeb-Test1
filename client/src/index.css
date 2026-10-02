@@ -44,3 +44,5 @@
 .special-subnav button { width: 100%; padding: 6px 8px; border: 0; border-radius: 5px; background: transparent; color: #708078; text-align: left; font-size: 11px; }
 .special-subnav button:hover, .special-subnav button.active { background: var(--teal-light); color: var(--teal); font-weight: 650; }
 .brand-lockup .brand-name { min-width: 0; font-size: 16px; line-height: 1.1; letter-spacing: -.045em; }
+.brand-copy { min-width: 0; display: grid; gap: 3px; }
+.brand-copy small { color: #7f8b84; font: 8px/1.2 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .015em; white-space: nowrap; }
