@@ -1,5 +1,6 @@
 export type VolumeUnit = "L" | "mL" | "µL";
 export type ConcentrationUnit =
+  | "%"
   | "mol/mL"
   | "mol/L"
   | "mol/µL"
@@ -13,6 +14,7 @@ export type DilutionTarget = "C1" | "V1" | "C2" | "V2";
 
 export const VOLUME_UNITS: VolumeUnit[] = ["L", "mL", "µL"];
 export const CONCENTRATION_UNITS: ConcentrationUnit[] = [
+  "%",
   "mol/mL",
   "mol/L",
   "mol/µL",
@@ -32,19 +34,22 @@ export function mlToVolume(value: number, unit: VolumeUnit) {
   return unit === "L" ? value / 1000 : unit === "µL" ? value * 1000 : value;
 }
 
-type ConcentrationFamily = "mol" | "mg" | "g";
+type ConcentrationFamily = "percent" | "mol" | "mg" | "g";
 function concentrationFamily(unit: ConcentrationUnit): ConcentrationFamily {
+  if (unit === "%") return "percent";
   return unit.split("/")[0] as ConcentrationFamily;
 }
 
 /** Convert to a family-specific amount per litre, preserving mol/mass dimensions. */
 export function concentrationToBase(value: number, unit: ConcentrationUnit) {
+  if (unit === "%") return value;
   const denominator = unit.split("/")[1];
   const perL = denominator === "µL" ? 1_000_000 : denominator === "mL" ? 1_000 : 1;
   return value * perL;
 }
 
 export function baseToConcentration(value: number, unit: ConcentrationUnit) {
+  if (unit === "%") return value;
   const denominator = unit.split("/")[1];
   const perL = denominator === "µL" ? 1_000_000 : denominator === "mL" ? 1_000 : 1;
   return value / perL;

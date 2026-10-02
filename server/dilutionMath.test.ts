@@ -44,6 +44,14 @@ describe("dilution calculator", () => {
     expect(calculateDilution("C1", { ...base, c1Unit: "mol/L" })).toBeNull();
   });
 
+  it("supports percentage concentrations for C1 and C2", () => {
+    const percentBase = { ...base, c1: 10, c2: 2, c1Unit: "%" as const, c2Unit: "%" as const };
+    expect(calculateDilution("C1", percentBase)).toBeCloseTo(10);
+    expect(calculateDilution("C2", percentBase)).toBeCloseTo(2);
+    expect(calculateDilution("V1", percentBase)).toBeCloseTo(20);
+    expect(calculateDilution("C1", { ...base, c1Unit: "%" as const })).toBeNull();
+  });
+
   it("rejects missing or non-positive known values", () => {
     expect(calculateDilution("V1", { ...base, c1: 0 })).toBeNull();
     expect(calculateDilution("C2", { ...base, v2: Number.NaN })).toBeNull();
