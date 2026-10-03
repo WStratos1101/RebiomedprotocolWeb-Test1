@@ -30,12 +30,8 @@ const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserI
 
 class OAuthService {
   constructor(private client: ReturnType<typeof axios.create>) {
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: MANUS_OAUTH_API_URL is not configured! Set MANUS_OAUTH_API_URL environment variable."
-      );
-    }
+    if (ENV.oAuthServerUrl) console.log("[OAuth] External OAuth enabled");
+    else console.log("[OAuth] External OAuth disabled; email authentication remains available");
   }
 
   private decodeState(state: string): string {
@@ -155,7 +151,7 @@ class SDKServer {
 
   private getSessionSecret() {
     const secret = ENV.cookieSecret;
-    if (!secret) throw new Error("MANUS_JWT_SECRET is unavailable");
+    if (!secret) throw new Error("SESSION_SECRET is unavailable");
     return new TextEncoder().encode(secret);
   }
 
@@ -295,8 +291,10 @@ class SDKServer {
     const signedInAt = new Date();
     let user = await db.getUserByOpenId(sessionUserId);
 
-    // If user not in DB, sync from OAuth server automatically
+    // Email accounts are fully local. Only attempt remote account sync when
+    // an external OAuth provider is explicitly configured.
     if (!user) {
+      if (!ENV.oAuthServerUrl) throw ForbiddenError("User not found");
       try {
         const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
         await db.upsertUser({

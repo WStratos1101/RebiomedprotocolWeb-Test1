@@ -1,0 +1,49 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-rebiomed}
+      MYSQL_USER: ${MYSQL_USER:-rebiomed}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    volumes:
+      - rebiomed_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  migrate:
+    build:
+      context: .
+      target: migration
+    restart: "no"
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-rebiomed}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-rebiomed}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["pnpm", "db:migrate"]
+
+  app:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_ID: ${APP_ID:-rebiomed-local}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      REBIOMED_PASSWORD_VAULT_KEY: ${REBIOMED_PASSWORD_VAULT_KEY:?Set REBIOMED_PASSWORD_VAULT_KEY in .env}
+      DATABASE_URL: mysql://${MYSQL_USER:-rebiomed}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-rebiomed}
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  rebiomed_mysql:

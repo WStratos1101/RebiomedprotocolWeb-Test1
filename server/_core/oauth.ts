@@ -4,6 +4,7 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { ENV } from "./env";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -12,6 +13,10 @@ function getQueryParam(req: Request, key: string): string | undefined {
 
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
+    if (!ENV.oAuthServerUrl) {
+      res.status(404).json({ error: "External OAuth is disabled; use email login." });
+      return;
+    }
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
 

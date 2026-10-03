@@ -6,6 +6,9 @@ COPY patches ./patches
 RUN CI=1 pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
+
+FROM build AS migration
+
 RUN pnpm prune --prod
 
 FROM node:22-bookworm-slim AS runtime
