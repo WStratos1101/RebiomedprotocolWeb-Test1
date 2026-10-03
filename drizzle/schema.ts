@@ -82,6 +82,17 @@ export const experimentRuns = mysqlTable("experimentRuns", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const experimentLogs = mysqlTable("experimentLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull(),
+  workDate: varchar("workDate", { length: 20 }).notNull(),
+  workDone: text("workDone").notNull(),
+  protocol: text("protocol").notNull(),
+  cellsSeeded: varchar("cellsSeeded", { length: 255 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Protocol = typeof protocols.$inferSelect;
@@ -89,3 +100,4 @@ export type Sample = typeof samples.$inferSelect;
 export type Calculator = typeof calculators.$inferSelect;
 export type ChemicalRecipeRecord = typeof chemicalRecipes.$inferSelect;
 export type ExperimentRun = typeof experimentRuns.$inferSelect;
+export type ExperimentLog = typeof experimentLogs.$inferSelect;

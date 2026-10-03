@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getFormulaVariables } from "@shared/formulaMath";
 import { systemRouter } from "./_core/systemRouter";
-import { adminProcedure, publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { verifyPassword } from "./_core/password";
 import { decryptPasswordForAccount } from "./_core/passwordVault";
 import { createCalculatorDraft, createChemicalRecipe, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteChemicalRecipeById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getChemicalRecipeById, getLabContent, getProtocolById, getSampleById, getUserByEmail, getUserById, getUserByUsernameOrEmail, listChemicalRecipes, listTeamMembers, setCalculatorStatus, setChemicalRecipeStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateChemicalRecipe, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserProfile, updateUserRole } from "./db";
@@ -10,6 +10,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
 import { sdk } from "./_core/sdk";
+import { createExperimentLog, deleteExperimentLog, listExperimentLogs, updateExperimentLog } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -50,6 +51,33 @@ export const appRouter = router({
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
+    }),
+  }),
+  experimentLogs: router({
+    list: protectedProcedure.query(({ ctx }) => listExperimentLogs(ctx.user.id)),
+    create: protectedProcedure.input(z.object({
+      workDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Ngày làm không hợp lệ."),
+      workDone: z.string().trim().min(1).max(10000),
+      protocol: z.string().trim().min(1).max(5000),
+      cellsSeeded: z.string().trim().min(1).max(255),
+    })).mutation(async ({ input, ctx }) => {
+      await createExperimentLog({ ...input, ownerId: ctx.user.id });
+      return { success: true as const };
+    }),
+    update: protectedProcedure.input(z.object({
+      id: z.number().int().positive(),
+      workDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Ngày làm không hợp lệ."),
+      workDone: z.string().trim().min(1).max(10000),
+      protocol: z.string().trim().min(1).max(5000),
+      cellsSeeded: z.string().trim().min(1).max(255),
+    })).mutation(async ({ input, ctx }) => {
+      const { id, ...values } = input;
+      await updateExperimentLog(id, ctx.user.id, values);
+      return { success: true as const };
+    }),
+    delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      await deleteExperimentLog(input.id, ctx.user.id);
+      return { success: true as const };
     }),
   }),
   content: router({

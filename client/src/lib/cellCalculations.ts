@@ -6,6 +6,17 @@ export const volumeToMl = (value: number, unit: VolumeUnit) =>
 
 const positive = (value: number) => Number.isFinite(value) && value > 0;
 
+/** Returns total cells from manual chamber counts and the suspension volume in mL. */
+export function calculateManualCellCount(
+  averageCells: number,
+  countedSquares: number,
+  dilutionFactor: number,
+  solutionVolumeMl = 1,
+): number | null {
+  if (![averageCells, countedSquares, dilutionFactor, solutionVolumeMl].every(positive)) return null;
+  return (averageCells / countedSquares) * dilutionFactor * 10_000 * solutionVolumeMl;
+}
+
 /** Total cells required, regardless of how the target quantity is expressed. */
 export function calculateCellsNeeded(
   target: number,

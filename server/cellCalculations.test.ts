@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { calculateCellsNeeded, calculateVolumeToTake } from "../client/src/lib/cellCalculations";
+import { calculateCellsNeeded, calculateManualCellCount, calculateVolumeToTake } from "../client/src/lib/cellCalculations";
 
 describe("cell calculation units", () => {
+  it("uses 1 mL when the manual-count solution volume is omitted and scales by volume", () => {
+    expect(calculateManualCellCount(100, 4, 2)).toBe(500_000);
+    expect(calculateManualCellCount(100, 4, 2, 3)).toBe(1_500_000);
+  });
+
   it("treats cell as a total independent of wells or flasks", () => {
     expect(calculateCellsNeeded(750_000, "cell", 100, 0, "µL")).toBe(750_000);
     expect(calculateVolumeToTake(250_000, 1_000_000, "cell", 10, "mL", 0)).toBe(2.5);

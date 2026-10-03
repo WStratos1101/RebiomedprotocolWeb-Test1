@@ -1,7 +1,7 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createHash } from "node:crypto";
-import { calculators, chemicalRecipes, experimentRuns, InsertUser, protocols, samples, users } from "../drizzle/schema";
+import { calculators, chemicalRecipes, experimentLogs, experimentRuns, InsertUser, protocols, samples, users } from "../drizzle/schema";
 import { seedChemicalRecipes, type ChemicalIngredient } from "@shared/chemicalRecipes";
 import { ENV } from "./_core/env";
 import { encryptPasswordForAccount } from "./_core/passwordVault";
@@ -83,6 +83,30 @@ export async function getUserByUsernameOrEmail(identifier: string) {
     ? await db.select().from(users).where(eq(users.email, normalized.toLowerCase())).limit(1)
     : await db.select().from(users).where(eq(users.username, normalized)).limit(1);
   return result[0];
+}
+
+export async function listExperimentLogs(ownerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(experimentLogs).where(eq(experimentLogs.ownerId, ownerId)).orderBy(asc(experimentLogs.workDate), asc(experimentLogs.id));
+}
+
+export async function createExperimentLog(input: { ownerId: number; workDate: string; workDone: string; protocol: string; cellsSeeded: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(experimentLogs).values(input);
+}
+
+export async function updateExperimentLog(id: number, ownerId: number, input: { workDate: string; workDone: string; protocol: string; cellsSeeded: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(experimentLogs).set(input).where(and(eq(experimentLogs.id, id), eq(experimentLogs.ownerId, ownerId)));
+}
+
+export async function deleteExperimentLog(id: number, ownerId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.delete(experimentLogs).where(and(eq(experimentLogs.id, id), eq(experimentLogs.ownerId, ownerId)));
 }
 
 export async function createEmailUser(input: { username: string; email: string; name: string; password: string }) {
