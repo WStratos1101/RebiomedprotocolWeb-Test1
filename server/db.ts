@@ -1,7 +1,8 @@
 import { asc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createHash } from "node:crypto";
-import { calculators, experimentRuns, InsertUser, protocols, samples, users } from "../drizzle/schema";
+import { calculators, chemicalRecipes, experimentRuns, InsertUser, protocols, samples, users } from "../drizzle/schema";
+import { seedChemicalRecipes, type ChemicalIngredient } from "@shared/chemicalRecipes";
 import { ENV } from "./_core/env";
 import { encryptPasswordForAccount } from "./_core/passwordVault";
 import { hashPassword } from "./_core/password";
@@ -263,6 +264,97 @@ export async function getLabContent() {
     db.select().from(experimentRuns).orderBy(asc(experimentRuns.id)),
   ]);
   return { protocols: protocolRows, samples: sampleRows, calculators: calculatorRows, runs: runRows };
+}
+
+type ChemicalRecipeInput = {
+  name: string;
+  group: string;
+  baseVolume: number;
+  baseUnit: string;
+  stock: string;
+  note?: string;
+  ingredients: ChemicalIngredient[];
+  method: string;
+};
+
+async function ensureChemicalSeed() {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await db.select({ slug: chemicalRecipes.slug }).from(chemicalRecipes).limit(1);
+  if (existing.length > 0) return;
+  await db.insert(chemicalRecipes).values(seedChemicalRecipes.map(recipe => ({
+    slug: recipe.id,
+    name: recipe.name,
+    groupName: recipe.group,
+    baseVolume: String(recipe.baseVolume),
+    baseUnit: recipe.baseUnit,
+    stock: recipe.stock,
+    note: recipe.note ?? null,
+    ingredients: recipe.ingredients,
+    method: recipe.steps.join("\n"),
+    active: 1,
+  })));
+}
+
+function slugifyChemicalName(name: string) {
+  return `${name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
+}
+
+function toChemicalRecipe(row: typeof chemicalRecipes.$inferSelect) {
+  return {
+    id: row.slug,
+    dbId: row.id,
+    name: row.name,
+    group: row.groupName,
+    baseVolume: Number(row.baseVolume),
+    baseUnit: row.baseUnit,
+    stock: row.stock,
+    note: row.note ?? undefined,
+    ingredients: Array.isArray(row.ingredients) ? row.ingredients as ChemicalIngredient[] : [],
+    steps: row.method.split("\n").map(item => item.trim()).filter(Boolean),
+  };
+}
+
+export async function listChemicalRecipes() {
+  const db = await getDb();
+  if (!db) return seedChemicalRecipes.map(recipe => ({ ...recipe, dbId: undefined }));
+  await ensureChemicalSeed();
+  const rows = await db.select().from(chemicalRecipes).where(eq(chemicalRecipes.active, 1)).orderBy(asc(chemicalRecipes.id));
+  return rows.map(toChemicalRecipe);
+}
+
+export async function createChemicalRecipe(input: ChemicalRecipeInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(chemicalRecipes).values({
+    slug: slugifyChemicalName(input.name),
+    name: input.name,
+    groupName: input.group,
+    baseVolume: String(input.baseVolume),
+    baseUnit: input.baseUnit,
+    stock: input.stock,
+    note: input.note || null,
+    ingredients: input.ingredients,
+    method: input.method,
+    active: 1,
+  });
+}
+
+export async function updateChemicalRecipe(id: number, input: ChemicalRecipeInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const target = await db.select({ id: chemicalRecipes.id }).from(chemicalRecipes).where(eq(chemicalRecipes.id, id)).limit(1);
+  if (!target[0]) throw new Error("Không tìm thấy cách pha hoá chất.");
+  await db.update(chemicalRecipes).set({
+    name: input.name,
+    groupName: input.group,
+    baseVolume: String(input.baseVolume),
+    baseUnit: input.baseUnit,
+    stock: input.stock,
+    note: input.note || null,
+    ingredients: input.ingredients,
+    method: input.method,
+  }).where(eq(chemicalRecipes.id, id));
 }
 
 export async function createProtocolDraft(input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure"; steps?: { title: string; detail: string; time: string }[] }) {

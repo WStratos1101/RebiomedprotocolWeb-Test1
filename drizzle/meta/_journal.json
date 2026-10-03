@@ -78,6 +78,13 @@
       "when": 1790953458000,
       "tag": "0010_password_vault",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1790991262737,
+      "tag": "0011_chemical_recipes",
+      "breakpoints": true
     }
   ]
 }

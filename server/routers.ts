@@ -5,7 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { verifyPassword } from "./_core/password";
 import { decryptPasswordForAccount } from "./_core/passwordVault";
-import { createCalculatorDraft, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserByEmail, getUserById, getUserByUsernameOrEmail, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserProfile, updateUserRole } from "./db";
+import { createCalculatorDraft, createChemicalRecipe, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserByEmail, getUserById, getUserByUsernameOrEmail, listChemicalRecipes, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateChemicalRecipe, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserProfile, updateUserRole } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
@@ -131,6 +131,31 @@ export const appRouter = router({
     approveProtocol: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setProtocolStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
     approveSample: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setSampleStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
     approveCalculator: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setCalculatorStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
+  }),
+
+  chemicals: router({
+    list: publicProcedure.query(() => listChemicalRecipes()),
+    create: publicProcedure.input(z.object({
+      name: z.string().trim().min(1).max(255),
+      group: z.string().trim().min(1).max(120),
+      baseVolume: z.number().positive(),
+      baseUnit: z.enum(["L", "mL", "µL"]),
+      stock: z.string().max(255).default(""),
+      note: z.string().max(5000).default(""),
+      ingredients: z.array(z.object({ name: z.string().trim().min(1).max(255), quantity: z.number().nonnegative().optional(), unit: z.string().max(32).optional(), stockValue: z.number().nonnegative().optional(), stockUnit: z.string().max(32).optional(), form: z.string().trim().min(1).max(64), note: z.string().max(1000).optional(), finalTopUp: z.boolean().optional() })).min(1).max(100),
+      method: z.string().trim().min(1).max(20000),
+    })).mutation(async ({ input }) => { await createChemicalRecipe(input); return { success: true as const }; }),
+    update: publicProcedure.input(z.object({
+      id: z.number().int().positive(),
+      name: z.string().trim().min(1).max(255),
+      group: z.string().trim().min(1).max(120),
+      baseVolume: z.number().positive(),
+      baseUnit: z.enum(["L", "mL", "µL"]),
+      stock: z.string().max(255).default(""),
+      note: z.string().max(5000).default(""),
+      ingredients: z.array(z.object({ name: z.string().trim().min(1).max(255), quantity: z.number().nonnegative().optional(), unit: z.string().max(32).optional(), stockValue: z.number().nonnegative().optional(), stockUnit: z.string().max(32).optional(), form: z.string().trim().min(1).max(64), note: z.string().max(1000).optional(), finalTopUp: z.boolean().optional() })).min(1).max(100),
+      method: z.string().trim().min(1).max(20000),
+    })).mutation(async ({ input }) => { const { id, ...recipe } = input; await updateChemicalRecipe(id, recipe); return { success: true as const }; }),
   }),
 
   team: router({

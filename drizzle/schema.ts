@@ -56,6 +56,20 @@ export const calculators = mysqlTable("calculators", {
   active: int("active").default(1).notNull(),
 });
 
+export const chemicalRecipes = mysqlTable("chemicalRecipes", {
+  id: int("id").autoincrement().primaryKey(),
+  slug: varchar("slug", { length: 160 }).notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull(),
+  groupName: varchar("groupName", { length: 120 }).notNull(),
+  baseVolume: decimal("baseVolume", { precision: 16, scale: 6 }).notNull(),
+  baseUnit: varchar("baseUnit", { length: 16 }).notNull(),
+  stock: varchar("stock", { length: 255 }).notNull(),
+  note: text("note"),
+  ingredients: json("ingredients").notNull(),
+  method: text("method").notNull(),
+  active: int("active").default(1).notNull(),
+});
+
 export const experimentRuns = mysqlTable("experimentRuns", {
   id: int("id").autoincrement().primaryKey(),
   runCode: varchar("runCode", { length: 60 }).notNull().unique(),
@@ -72,4 +86,5 @@ export type InsertUser = typeof users.$inferInsert;
 export type Protocol = typeof protocols.$inferSelect;
 export type Sample = typeof samples.$inferSelect;
 export type Calculator = typeof calculators.$inferSelect;
+export type ChemicalRecipeRecord = typeof chemicalRecipes.$inferSelect;
 export type ExperimentRun = typeof experimentRuns.$inferSelect;
