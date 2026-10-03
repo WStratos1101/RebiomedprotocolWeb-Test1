@@ -168,7 +168,8 @@ function vitePluginPublicPlatformConfig(): Plugin {
   };
 }
 
-const plugins = [vitePluginPublicPlatformConfig(), react(), tailwindcss(), jsxLocPlugin(), vitePluginManusDebugCollector()];
+const devOnlyPlugins = process.argv.includes("build") ? [] : [jsxLocPlugin(), vitePluginManusDebugCollector()];
+const plugins = [vitePluginPublicPlatformConfig(), react(), tailwindcss(), ...devOnlyPlugins];
 
 export default defineConfig({
   plugins,
