@@ -292,6 +292,7 @@ async function ensureChemicalSeed() {
     note: recipe.note ?? null,
     ingredients: recipe.ingredients,
     method: recipe.steps.join("\n"),
+    status: "Đã duyệt",
     active: 1,
   })));
 }
@@ -312,6 +313,7 @@ function toChemicalRecipe(row: typeof chemicalRecipes.$inferSelect) {
     note: row.note ?? undefined,
     ingredients: Array.isArray(row.ingredients) ? row.ingredients as ChemicalIngredient[] : [],
     steps: row.method.split("\n").map(item => item.trim()).filter(Boolean),
+    status: row.status === "Bản nháp" ? "Bản nháp" : "Đã duyệt",
   };
 }
 
@@ -336,8 +338,16 @@ export async function createChemicalRecipe(input: ChemicalRecipeInput) {
     note: input.note || null,
     ingredients: input.ingredients,
     method: input.method,
+    status: "Bản nháp",
     active: 1,
   });
+}
+
+export async function getChemicalRecipeById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(chemicalRecipes).where(eq(chemicalRecipes.id, id)).limit(1);
+  return rows[0];
 }
 
 export async function updateChemicalRecipe(id: number, input: ChemicalRecipeInput) {
@@ -355,6 +365,20 @@ export async function updateChemicalRecipe(id: number, input: ChemicalRecipeInpu
     ingredients: input.ingredients,
     method: input.method,
   }).where(eq(chemicalRecipes.id, id));
+}
+
+export async function setChemicalRecipeStatus(id: number, status: "Bản nháp" | "Đã duyệt") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.update(chemicalRecipes).set({ status }).where(eq(chemicalRecipes.id, id));
+  if (result[0].affectedRows === 0) throw new Error("Không tìm thấy cách pha hoá chất.");
+}
+
+export async function deleteChemicalRecipeById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.update(chemicalRecipes).set({ active: 0 }).where(eq(chemicalRecipes.id, id));
+  if (result[0].affectedRows === 0) throw new Error("Không tìm thấy cách pha hoá chất.");
 }
 
 export async function createProtocolDraft(input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure"; steps?: { title: string; detail: string; time: string }[] }) {

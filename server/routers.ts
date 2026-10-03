@@ -5,7 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { verifyPassword } from "./_core/password";
 import { decryptPasswordForAccount } from "./_core/passwordVault";
-import { createCalculatorDraft, createChemicalRecipe, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getLabContent, getProtocolById, getSampleById, getUserByEmail, getUserById, getUserByUsernameOrEmail, listChemicalRecipes, listTeamMembers, setCalculatorStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateChemicalRecipe, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserProfile, updateUserRole } from "./db";
+import { createCalculatorDraft, createChemicalRecipe, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteChemicalRecipeById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getChemicalRecipeById, getLabContent, getProtocolById, getSampleById, getUserByEmail, getUserById, getUserByUsernameOrEmail, listChemicalRecipes, listTeamMembers, setCalculatorStatus, setChemicalRecipeStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateChemicalRecipe, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserProfile, updateUserRole } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
@@ -155,7 +155,9 @@ export const appRouter = router({
       note: z.string().max(5000).default(""),
       ingredients: z.array(z.object({ name: z.string().trim().min(1).max(255), quantity: z.number().nonnegative().optional(), unit: z.string().max(32).optional(), stockValue: z.number().nonnegative().optional(), stockUnit: z.string().max(32).optional(), form: z.string().trim().min(1).max(64), note: z.string().max(1000).optional(), finalTopUp: z.boolean().optional() })).min(1).max(100),
       method: z.string().trim().min(1).max(20000),
-    })).mutation(async ({ input }) => { const { id, ...recipe } = input; await updateChemicalRecipe(id, recipe); return { success: true as const }; }),
+    })).mutation(async ({ input, ctx }) => { const current = await getChemicalRecipeById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy cách pha hoá chất." }); if (current.status !== "Bản nháp" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được chỉnh sửa cách pha đã duyệt." }); const { id, ...recipe } = input; await updateChemicalRecipe(id, recipe); return { success: true as const }; }),
+    delete: publicProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { const current = await getChemicalRecipeById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy cách pha hoá chất." }); if (current.status !== "Bản nháp" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá cách pha đã duyệt." }); await deleteChemicalRecipeById(input.id); return { success: true as const }; }),
+    approve: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setChemicalRecipeStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
   }),
 
   team: router({

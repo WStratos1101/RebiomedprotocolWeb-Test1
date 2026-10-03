@@ -1,6 +1,6 @@
 export type ChemicalUnit = "L" | "mL" | "µL";
 export type ChemicalIngredient = { name: string; quantity?: number; unit?: string; stockValue?: number; stockUnit?: string; form: string; note?: string; finalTopUp?: boolean };
-export type ChemicalRecipe = { id: string; name: string; group: string; baseVolume: number; baseUnit: ChemicalUnit; stock: string; note?: string; ingredients: ChemicalIngredient[]; steps: string[] };
+export type ChemicalRecipe = { id: string; name: string; group: string; baseVolume: number; baseUnit: ChemicalUnit; stock: string; note?: string; ingredients: ChemicalIngredient[]; steps: string[]; status?: "Bản nháp" | "Đã duyệt" };
 
 export const seedChemicalRecipes: ChemicalRecipe[] = [
   { id: "pbs", name: "PBS", group: "Dung dịch cơ bản", baseVolume: 1000, baseUnit: "mL", stock: "—", ingredients: [{ name: "Nước cất 2 lần", quantity: 1000, unit: "mL", form: "Lỏng" }, { name: "Gói bột PBS", quantity: 1, unit: "gói", form: "Rắn" }], steps: ["Khuấy tan bột và nước", "Lọc giấy lọc Watman", "Hấp vô trùng và sử dụng"] },

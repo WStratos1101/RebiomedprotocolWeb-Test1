@@ -67,6 +67,7 @@ export const chemicalRecipes = mysqlTable("chemicalRecipes", {
   note: text("note"),
   ingredients: json("ingredients").notNull(),
   method: text("method").notNull(),
+  status: varchar("status", { length: 32 }).default("Đã duyệt").notNull(),
   active: int("active").default(1).notNull(),
 });
 
