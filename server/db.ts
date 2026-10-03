@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createHash } from "node:crypto";
 import { calculators, chemicalRecipes, experimentLogs, experimentRuns, InsertUser, protocols, samples, users } from "../drizzle/schema";
@@ -107,6 +107,19 @@ export async function deleteExperimentLog(id: number, ownerId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await db.delete(experimentLogs).where(and(eq(experimentLogs.id, id), eq(experimentLogs.ownerId, ownerId)));
+}
+
+export async function deleteExperimentLogs(ids: number[] | undefined, ownerId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const ownerFilter = eq(experimentLogs.ownerId, ownerId);
+  if (!ids) {
+    await db.delete(experimentLogs).where(ownerFilter);
+    return;
+  }
+  if (ids.length > 0) {
+    await db.delete(experimentLogs).where(and(ownerFilter, inArray(experimentLogs.id, ids)));
+  }
 }
 
 export async function createEmailUser(input: { username: string; email: string; name: string; password: string }) {

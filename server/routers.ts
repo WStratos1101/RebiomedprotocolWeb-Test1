@@ -10,7 +10,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
 import { sdk } from "./_core/sdk";
-import { createExperimentLog, deleteExperimentLog, listExperimentLogs, updateExperimentLog } from "./db";
+import { createExperimentLog, deleteExperimentLog, deleteExperimentLogs, listExperimentLogs, updateExperimentLog } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -77,6 +77,10 @@ export const appRouter = router({
     }),
     delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
       await deleteExperimentLog(input.id, ctx.user.id);
+      return { success: true as const };
+    }),
+    deleteMany: protectedProcedure.input(z.object({ ids: z.array(z.number().int().positive()).max(500).optional() })).mutation(async ({ input, ctx }) => {
+      await deleteExperimentLogs(input.ids, ctx.user.id);
       return { success: true as const };
     }),
   }),
