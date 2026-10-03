@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createHash } from "node:crypto";
 import { calculators, chemicalRecipes, experimentLogs, experimentRuns, InsertUser, protocols, samples, users } from "../drizzle/schema";
@@ -8,6 +8,7 @@ import { encryptPasswordForAccount } from "./_core/passwordVault";
 import { hashPassword } from "./_core/password";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let experimentLogsTableReady: Promise<void> | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
@@ -19,6 +20,26 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+async function ensureExperimentLogsTable(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  if (!experimentLogsTableReady) {
+    experimentLogsTableReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`experimentLogs\` (
+      \`id\` int AUTO_INCREMENT NOT NULL,
+      \`ownerId\` int NOT NULL,
+      \`workDate\` varchar(20) NOT NULL,
+      \`workDone\` text NOT NULL,
+      \`protocol\` text NOT NULL,
+      \`cellsSeeded\` varchar(255) NOT NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updatedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`)
+    )`).then(() => undefined).catch(error => {
+      experimentLogsTableReady = null;
+      throw error;
+    });
+  }
+  await experimentLogsTableReady;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -88,30 +109,35 @@ export async function getUserByUsernameOrEmail(identifier: string) {
 export async function listExperimentLogs(ownerId: number) {
   const db = await getDb();
   if (!db) return [];
+  await ensureExperimentLogsTable(db);
   return db.select().from(experimentLogs).where(eq(experimentLogs.ownerId, ownerId)).orderBy(asc(experimentLogs.workDate), asc(experimentLogs.id));
 }
 
 export async function createExperimentLog(input: { ownerId: number; workDate: string; workDone: string; protocol: string; cellsSeeded: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
+  await ensureExperimentLogsTable(db);
   await db.insert(experimentLogs).values(input);
 }
 
 export async function updateExperimentLog(id: number, ownerId: number, input: { workDate: string; workDone: string; protocol: string; cellsSeeded: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
+  await ensureExperimentLogsTable(db);
   await db.update(experimentLogs).set(input).where(and(eq(experimentLogs.id, id), eq(experimentLogs.ownerId, ownerId)));
 }
 
 export async function deleteExperimentLog(id: number, ownerId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
+  await ensureExperimentLogsTable(db);
   await db.delete(experimentLogs).where(and(eq(experimentLogs.id, id), eq(experimentLogs.ownerId, ownerId)));
 }
 
 export async function deleteExperimentLogs(ids: number[] | undefined, ownerId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
+  await ensureExperimentLogsTable(db);
   const ownerFilter = eq(experimentLogs.ownerId, ownerId);
   if (!ids) {
     await db.delete(experimentLogs).where(ownerFilter);
