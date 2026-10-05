@@ -1,4 +1,4 @@
-import { decimal, int, json, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -94,7 +94,7 @@ export const experimentLogs = mysqlTable("experimentLogs", {
   issue: text("issue"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, table => ({ ownerDateIndex: index("experimentLogs_owner_date_idx").on(table.ownerId, table.workDate, table.id) }));
 
 export const feedbacks = mysqlTable("feedbacks", {
   id: int("id").autoincrement().primaryKey(),

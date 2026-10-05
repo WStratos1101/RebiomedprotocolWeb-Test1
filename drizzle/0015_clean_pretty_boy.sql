@@ -1,0 +1,1 @@
+CREATE INDEX `experimentLogs_owner_date_idx` ON `experimentLogs` (`ownerId`,`workDate`,`id`);

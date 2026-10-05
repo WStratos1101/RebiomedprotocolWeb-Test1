@@ -38,12 +38,10 @@ async function ensureExperimentLogsTable(db: NonNullable<Awaited<ReturnType<type
       \`updatedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (\`id\`)
     )`).then(async () => {
+      const result = await db.execute(sql`SELECT COLUMN_NAME FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'experimentLogs'`);
+      const columns = new Set(((result[0] ?? []) as unknown as Array<{ COLUMN_NAME?: string }>).map(row => row.COLUMN_NAME));
       for (const column of ["note", "numericNote", "issue"] as const) {
-        try {
-          await db.execute(sql.raw(`ALTER TABLE \`experimentLogs\` ADD COLUMN \`${column}\` text NULL`));
-        } catch (error) {
-          if ((error as { code?: string }).code !== "ER_DUP_FIELDNAME") throw error;
-        }
+        if (!columns.has(column)) await db.execute(sql.raw(`ALTER TABLE \`experimentLogs\` ADD COLUMN \`${column}\` text NULL`));
       }
     }).catch(error => {
       experimentLogsTableReady = null;
