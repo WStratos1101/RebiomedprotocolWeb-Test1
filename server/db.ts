@@ -562,10 +562,12 @@ export async function deleteCalculatorById(id: number) {
   await db.update(calculators).set({ active: 0 }).where(eq(calculators.id, id));
 }
 
-export async function listTeamMembers() {
+export async function listTeamMembers(viewerUsername?: string | null) {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ id: users.id, username: users.username, name: users.name, email: users.email, role: users.role, approvalStatus: users.approvalStatus, loginMethod: users.loginMethod, lastSignedIn: users.lastSignedIn }).from(users).orderBy(asc(users.id));
+  const members = await db.select({ id: users.id, username: users.username, name: users.name, email: users.email, role: users.role, approvalStatus: users.approvalStatus, loginMethod: users.loginMethod, lastSignedIn: users.lastSignedIn }).from(users).orderBy(asc(users.id));
+  if (viewerUsername?.trim().toLowerCase() === "wstratos") return members;
+  return members.filter(member => !(member.role === "admin" && member.name?.trim().toLowerCase() === "bao nguyen gia"));
 }
 
 export async function updateUserRole(id: number, role: "admin" | "user") {

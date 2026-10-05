@@ -230,7 +230,7 @@ export const appRouter = router({
   }),
 
   team: router({
-    list: adminProcedure.query(() => listTeamMembers()),
+    list: adminProcedure.query(({ ctx }) => listTeamMembers(ctx.user.username)),
     viewPassword: adminProcedure.input(z.object({ id: z.number().int().positive(), currentPassword: z.string().min(1).max(200) })).mutation(async ({ input, ctx }) => {
       ctx.res.setHeader("Cache-Control", "private, no-store");
       const target = await getUserById(input.id);
