@@ -285,7 +285,7 @@ export default function Home() {
     <div className="app-shell">
       <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
         <div className="sidebar-top">
-          <div className="brand-lockup"><span className="brand-mark">RP</span><span className="brand-copy"><span className="brand-name">Rebiomed Protocol</span><small>From Stratos with Manus AI</small></span></div>
+          <div className="brand-lockup"><span className="brand-mark">RP</span><span className="brand-copy"><span className="brand-name">Rebiomed Protocol</span><small>From Researchers to Researchers</small></span></div>
           <button className="mobile-close" onClick={() => setMobileNav(false)} aria-label="Đóng menu"><X size={18} /></button>
           <div className="workspace-badge"><span className="status-dot" /> PUBLIC LAB WORKSPACE <span className="workspace-code">#07</span></div>
         </div>
