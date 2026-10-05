@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { CalendarDays, Check, FilePenLine, Plus, Save, Trash2 } from "lucide-react";
+import { CalendarDays, Check, FileDown, FilePenLine, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { exportJournalData, type JournalExportFormat } from "@/lib/journalExport";
 
 type JournalDraft = { workDate: string; workDone: string; protocol: string; cellsSeeded: string };
 const emptyDraft = (): JournalDraft => ({ workDate: new Date().toISOString().slice(0, 10), workDone: "", protocol: "", cellsSeeded: "" });
@@ -14,6 +15,7 @@ export function ExperimentJournal({ userId, userName }: { userId?: number; userN
   const [draft, setDraft] = useState<JournalDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [exporting, setExporting] = useState<JournalExportFormat | null>(null);
   const createMutation = trpc.experimentLogs.create.useMutation({ onSuccess: async () => { await logsQuery.refetch(); setDraft(emptyDraft()); toast.success("Đã lưu nhật ký thí nghiệm vào lịch sử."); }, onError: error => toast.error(`Không thể lưu nhật ký: ${error.message}`) });
   const updateMutation = trpc.experimentLogs.update.useMutation({ onSuccess: async () => { await logsQuery.refetch(); setEditingId(null); setDraft(emptyDraft()); toast.success("Đã cập nhật nhật ký."); }, onError: error => toast.error(error.message) });
   const deleteMutation = trpc.experimentLogs.delete.useMutation({ onSuccess: async () => { await logsQuery.refetch(); toast.success("Đã xoá nhật ký."); }, onError: error => toast.error(error.message) });
@@ -26,6 +28,18 @@ export function ExperimentJournal({ userId, userName }: { userId?: number; userN
   const confirmDelete = (message: string) => window.confirm(message) && window.confirm("Xác nhận lần cuối: thao tác xoá nhật ký không thể hoàn tác.");
   const deleteSelected = () => { if (!selectedIds.size) return toast.info("Hãy chọn ít nhất một nhật ký để xoá."); if (confirmDelete(`Xoá ${selectedIds.size} nhật ký đã chọn?`)) deleteManyMutation.mutate({ ids: Array.from(selectedIds) }); };
   const deleteAll = () => { if (!logs.length) return; if (confirmDelete(`Xoá toàn bộ ${logs.length} nhật ký của bạn?`)) deleteManyMutation.mutate({}); };
+  const exportData = async (format: JournalExportFormat) => {
+    if (!logs.length) return toast.info("Chưa có nhật ký để xuất.");
+    setExporting(format);
+    try {
+      await exportJournalData(logs, userName, format);
+      toast.success(`Đã mở tab xem trước và tải file ${format === "pdf" ? "PDF" : "Excel"} về máy.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể xuất dữ liệu nhật ký.");
+    } finally {
+      setExporting(null);
+    }
+  };
   const save = () => {
     if (!draft.workDate || !draft.workDone.trim() || !draft.protocol.trim() || !draft.cellsSeeded.trim()) {
       toast.error("Vui lòng điền đủ ngày làm, công việc, quy trình và số lượng tế bào đã seed.");
@@ -48,7 +62,7 @@ export function ExperimentJournal({ userId, userName }: { userId?: number; userN
         <div className="journal-actions"><span>Chỉ account chủ mới được điều chỉnh hoặc xoá.</span><div>{editingId && <Button variant="outline" onClick={cancelEdit}>Huỷ</Button>}<Button className="primary-cta" onClick={save} disabled={createMutation.isPending || updateMutation.isPending}><Save size={15} /> {editingId ? "Lưu thay đổi" : "Lưu nhật ký"}</Button></div></div>
       </section>
       <section className="content-panel journal-list">
-        <div className="panel-heading"><div><span className="panel-index">MY EXPERIMENT LOG / {logs.length} ENTRIES</span><h2>Lịch sử thí nghiệm</h2></div><button className="icon-button journal-add-button" type="button" onClick={() => { setEditingId(null); setDraft(emptyDraft()); document.querySelector(".journal-editor")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} aria-label="Tạo mục nhật ký mới" title="Tạo mục nhật ký mới"><Plus size={20} /></button></div>
+        <div className="panel-heading"><div><span className="panel-index">MY EXPERIMENT LOG / {logs.length} ENTRIES</span><h2>Lịch sử thí nghiệm</h2></div><div className="journal-heading-actions"><button className="icon-button journal-add-button" type="button" onClick={() => { setEditingId(null); setDraft(emptyDraft()); document.querySelector(".journal-editor")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} aria-label="Tạo mục nhật ký mới" title="Tạo mục nhật ký mới"><Plus size={20} /></button><Button variant="outline" disabled={!logs.length || exporting !== null} onClick={() => exportData("pdf")} title="Xuất PDF"><FileDown size={14} /> {exporting === "pdf" ? "Đang tạo PDF…" : "PDF"}</Button><Button variant="outline" disabled={!logs.length || exporting !== null} onClick={() => exportData("xlsx")} title="Xuất Excel"><FileDown size={14} /> {exporting === "xlsx" ? "Đang tạo Excel…" : "Excel"}</Button></div></div>
         {logsQuery.error && <div className="journal-error" role="alert"><strong>Không thể tải lịch sử thí nghiệm.</strong><span>{logsQuery.error.message}</span><Button variant="outline" onClick={() => logsQuery.refetch()}>Thử lại</Button></div>}
         {logs.length === 0 ? <div className="empty-state"><CalendarDays size={25} /><h3>Chưa có nhật ký</h3><p>Bắt đầu bằng cách lưu công việc hôm nay.</p></div> : <>
           <div className="journal-bulk-actions"><label><input type="checkbox" checked={allSelected} onChange={toggleAll} /> <span>{allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}</span></label><span>{selectedIds.size} đã chọn</span><Button variant="outline" disabled={!selectedIds.size || deleteManyMutation.isPending} onClick={deleteSelected}><Trash2 size={14} /> Xoá lựa chọn</Button><Button variant="outline" disabled={deleteManyMutation.isPending} onClick={deleteAll}><Trash2 size={14} /> Xoá toàn bộ</Button></div>
