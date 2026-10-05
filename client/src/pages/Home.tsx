@@ -7,14 +7,17 @@ import { calculateCellsNeeded, calculateManualCellCount, calculateVolumeToTake }
 import { calculateDilution, CONCENTRATION_UNITS, VOLUME_UNITS, type ConcentrationUnit, type DilutionTarget, type VolumeUnit, volumeToMl } from "@/lib/dilutionMath";
 import { parseLocaleNumber } from "@/lib/numberInput";
 import { ExperimentJournal } from "@/components/ExperimentJournal";
+import { AdminFeedbackView, FeedbackView } from "@/components/FeedbackView";
 import { toast } from "sonner";
 import {
   Archive,
+  AlertTriangle,
   ArrowLeft,
   Beaker,
   BookOpen,
   Calculator,
   Check,
+  ClipboardCheck,
   ChevronRight,
   ClipboardList,
   Clock3,
@@ -44,7 +47,7 @@ const lazyFallback = <div className="content-panel loading-state">Đang tải mo
 type SpecialCategory = "Hypoxia" | "HighPressure";
 const SPECIAL_CATEGORY_LABEL: Record<SpecialCategory, string> = { Hypoxia: "Nuôi cấy Hypoxia", HighPressure: "Nuôi cấy áp suất cao" };
 
-type View = "overview" | "protocols" | "samples" | "calculator" | "special" | "chemicals" | "chemicalStock" | "admin" | "adminAccounts" | "adminLogin" | "userLogin" | "userAccount" | "createProtocol";
+type View = "overview" | "protocols" | "samples" | "calculator" | "special" | "chemicals" | "chemicalStock" | "feedback" | "admin" | "adminAccounts" | "adminFeedback" | "adminLogin" | "userLogin" | "userAccount" | "createProtocol";
 type Protocol = {
   id: string;
   title: string;
@@ -111,8 +114,10 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "calculator", label: "Công cụ tính", icon: Calculator },
   { id: "chemicals", label: "Pha hoá chất", icon: FlaskConical },
   { id: "special", label: "Thí nghiệm điều kiện đặc trưng", icon: Beaker },
+  { id: "feedback", label: "Phản ánh", icon: AlertTriangle },
   { id: "admin", label: "Quản lý nội dung", icon: Settings2 },
   { id: "adminAccounts", label: "Quản trị Admin", icon: ShieldCheck },
+  { id: "adminFeedback", label: "Các phản ánh", icon: ClipboardCheck },
 ];
 
 function formatNumber(value: number) {
@@ -291,7 +296,7 @@ export default function Home() {
         </div>
         <div className="nav-caption">Workspace</div>
         <nav className="main-nav">
-          {navItems.filter(item => item.id !== "adminAccounts" || isAdmin).map(item => { const Icon = item.icon; return <div key={item.id}><button className={`nav-item ${view === item.id || (item.id === "chemicals" && view === "chemicalStock") ? "active" : ""}`} onClick={() => { setView(item.id); setSelectedProtocol(null); setSelectedSample(null); setMobileNav(false); }}><Icon size={17} /><span>{item.label}</span>{item.id === "protocols" && <span className="nav-count">{protocols.length}</span>}</button>{item.id === "special" && <div className="special-subnav">{(["Hypoxia", "HighPressure"] as const).map(key => <button key={key} className={view === "special" && specialCategory === key ? "active" : ""} onClick={() => { setSpecialCategory(key); setView("special"); setMobileNav(false); }}>{SPECIAL_CATEGORY_LABEL[key]}</button>)}</div>}{item.id === "chemicals" && <div className="special-subnav chemical-subnav"><button className={view === "chemicals" ? "active" : ""} onClick={() => { setView("chemicals"); setMobileNav(false); }}>Hoá chất</button><button className={view === "chemicalStock" ? "active" : ""} onClick={() => { setView("chemicalStock"); setMobileNav(false); }}>Hoá chất stock</button></div>}</div>; })}
+          {navItems.filter(item => (item.id !== "adminAccounts" && item.id !== "adminFeedback") || isAdmin).map(item => { const Icon = item.icon; return <div key={item.id}><button className={`nav-item ${view === item.id || (item.id === "chemicals" && view === "chemicalStock") ? "active" : ""}`} onClick={() => { setView(item.id); setSelectedProtocol(null); setSelectedSample(null); setMobileNav(false); }}><Icon size={17} /><span>{item.label}</span>{item.id === "protocols" && <span className="nav-count">{protocols.length}</span>}</button>{item.id === "special" && <div className="special-subnav">{(["Hypoxia", "HighPressure"] as const).map(key => <button key={key} className={view === "special" && specialCategory === key ? "active" : ""} onClick={() => { setSpecialCategory(key); setView("special"); setMobileNav(false); }}>{SPECIAL_CATEGORY_LABEL[key]}</button>)}</div>}{item.id === "chemicals" && <div className="special-subnav chemical-subnav"><button className={view === "chemicals" ? "active" : ""} onClick={() => { setView("chemicals"); setMobileNav(false); }}>Hoá chất</button><button className={view === "chemicalStock" ? "active" : ""} onClick={() => { setView("chemicalStock"); setMobileNav(false); }}>Hoá chất stock</button></div>}</div>; })}
         </nav>
         <div className="sidebar-rule" />
         <div className="sidebar-bottom"><div className="sync-note"><span className="sync-icon"><Check size={12} /></span><span><strong>Đã đồng bộ</strong><small>{contentQuery.isFetching ? "Đang cập nhật…" : "Chỉnh sửa trực tiếp"}</small></span></div></div>
@@ -302,6 +307,7 @@ export default function Home() {
         <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20} /></button><div className="breadcrumb"><span>Rebiomed Protocol</span><ChevronRight size={13} /><strong>{currentView?.label}</strong></div></div><div className="topbar-actions"><div className="global-search"><Search size={15} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm quy trình, mẫu, chủ đề…" /><kbd>⌘ K</kbd></div><div className="account-menu"><button className="topbar-avatar" onClick={() => setAccountMenuOpen(current => !current)} aria-label="Mở tài khoản" aria-expanded={accountMenuOpen}><UserAvatar name={user?.name ?? (isAdmin ? "Admin" : "User")} /></button>{accountMenuOpen && <div className="account-popover"><div className="account-popover-head"><UserAvatar name={user?.name ?? (isAdmin ? "Admin" : "User")} /><div><strong>{user?.name || (isAdmin ? "Admin" : "Khách")}</strong><small>{user?.email || (isAdmin ? "Tài khoản quản trị" : "Chưa đăng nhập")}</small></div></div>{user ? <><button onClick={() => { setView(isAdmin ? "adminAccounts" : "userAccount"); setAccountMenuOpen(false); }}>Trang cá nhân</button><button className="account-logout" onClick={() => { logoutMutation.mutate(); setAccountMenuOpen(false); }}>Đăng xuất</button></> : <><button onClick={() => { setView("userLogin"); setAccountMenuOpen(false); }}>Đăng nhập User</button><button onClick={() => { setView("adminLogin"); setAccountMenuOpen(false); }}>Đăng nhập Admin</button></>}</div>}</div></div></header>
         <div className="page-wrap">
           {view === "overview" && <ExperimentJournal userId={user?.id} userName={user?.name} />}
+          {view === "feedback" && <FeedbackView userId={user?.id} userName={user?.name} />}
           {view === "protocols" && <ProtocolsView protocols={filteredProtocols} selected={selectedProtocol} setSelected={setSelectedProtocol} openProtocol={openProtocol} onEdit={editProtocol} onDelete={handleDeleteProtocol} onCreate={() => startCreateProtocol()} canEdit={canEdit} canEditApproved={isAdmin} canDelete={isAdmin || selectedProtocol?.status === "Bản nháp"} search={search} />}
           {view === "samples" && <SamplesView samples={filteredSamples} selected={selectedSample} setSelected={setSelectedSample} openSample={openSample} onCreate={startCreateSample} onDelete={id => deleteSampleMutation.mutate({ id: Number(id) })} canManageApproved={isAdmin} search={search} />}
           {view === "calculator" && <CalculatorView tools={calculatorTools} onDesign={() => startCreateCalculator()} selectedCalc={selectedCalc} setSelectedCalc={setSelectedCalc} c1={c1} v1={v1} c2={c2} v2={v2} setC1={setC1} setV1={setV1} setC2={setC2} setV2={setV2} dilutionTarget={dilutionTarget} setDilutionTarget={setDilutionTarget} dilutionConcentrationMode={dilutionConcentrationMode} setDilutionConcentrationMode={setDilutionConcentrationMode} dilutionVolumeUnits={dilutionVolumeUnits} setDilutionVolumeUnits={setDilutionVolumeUnits} dilutionConcentrationUnits={dilutionConcentrationUnits} setDilutionConcentrationUnits={setDilutionConcentrationUnits} result={calculationResult} runCalculation={runCalculation} recent={recent} clearHistory={clearCalculationHistory} deleteCalculation={deleteCalculation} canCalculate={canEdit} volumeUnit={volumeUnit} setVolumeUnit={setVolumeUnit} cellUnit={cellUnit} setCellUnit={setCellUnit} dilutionMode={dilutionMode} setDilutionMode={setDilutionMode} dilutionFactorValue={dilutionFactorValue} setDilutionFactorValue={setDilutionFactorValue} dilutionInitialVolume={dilutionInitialVolume} setDilutionInitialVolume={setDilutionInitialVolume} dilutionAddedVolume={dilutionAddedVolume} setDilutionAddedVolume={setDilutionAddedVolume} manualSolutionVolume={manualSolutionVolume} setManualSolutionVolume={setManualSolutionVolume} />}
@@ -313,6 +319,7 @@ export default function Home() {
           {view === "userLogin" && <UserLoginView onSuccess={async () => { await authQuery.refetch(); setView("userAccount"); }} />}
           {view === "userAccount" && user && !isAdmin && <UserAccountView user={user} onSave={(email, currentPassword, newPassword) => updateProfileMutation.mutate({ email, currentPassword, newPassword: newPassword || undefined })} onLogout={() => logoutMutation.mutate()} />}
           {view === "adminAccounts" && isAdmin && <><AdminAccountsView canManagePasswords={user?.username?.toLowerCase() === "wstratos"} viewerId={user?.id ?? 0} team={(teamQuery.data ?? []).map(member => ({ ...member, name: member.name ?? "(chưa đặt tên)", email: member.email ?? "", lastActive: member.lastSignedIn ? new Date(member.lastSignedIn).toLocaleDateString("vi-VN") : "—", role: member.role as TeamMember["role"] }))} onApprovalChange={(id, status) => updateApprovalMutation.mutate({ id, approvalStatus: status })} onRoleChange={(id, roleValue) => updateRoleMutation.mutate({ id, role: roleValue })} onRevokeAccess={id => revokeAccessMutation.mutate({ id })} onDeleteUser={id => deleteUserMutation.mutate({ id })} onResetPassword={(id, password) => resetPasswordMutation.mutate({ id, password })} /><AdminReviewView protocols={protocols} samples={samples} calculators={calculatorTools} onApproveProtocol={id => approveProtocolMutation.mutate({ id })} onApproveSample={id => approveSampleMutation.mutate({ id })} onApproveCalculator={id => approveCalculatorMutation.mutate({ id })} /></>}
+          {view === "adminFeedback" && isAdmin && <AdminFeedbackView admins={(teamQuery.data ?? []).filter(member => member.role === "admin" && member.approvalStatus === "approved").map(member => ({ id: member.id, name: member.name ?? "", username: member.username }))} team={(teamQuery.data ?? []).map(member => ({ id: member.id, name: member.name ?? "", username: member.username }))} />}
           {view === "createProtocol" && canEdit && <ProtocolEditorPage title={draftTitle} owner={draftOwner} body={draftBody} steps={draftSteps} category={draftCategory} setTitle={setDraftTitle} setOwner={setDraftOwner} setBody={setDraftBody} setSteps={setDraftSteps} onSave={handleSaveDraft} onCancel={() => setView(draftCategory === "Custom" ? "protocols" : "special")} />}
         </div>
       </main>

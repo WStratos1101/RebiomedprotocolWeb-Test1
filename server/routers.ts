@@ -10,7 +10,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
 import { sdk } from "./_core/sdk";
-import { createExperimentLog, deleteExperimentLog, deleteExperimentLogs, listExperimentLogs, updateExperimentLog } from "./db";
+import { createExperimentLog, createFeedback, deleteExperimentLog, deleteExperimentLogs, listAdminFeedbacks, listExperimentLogs, listMyFeedbacks, resolveFeedback, updateExperimentLog } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -60,6 +60,9 @@ export const appRouter = router({
       workDone: z.string().trim().min(1).max(10000),
       protocol: z.string().trim().min(1).max(5000),
       cellsSeeded: z.string().trim().min(1).max(255),
+      note: z.string().max(10000).default(""),
+      numericNote: z.string().max(10000).default(""),
+      issue: z.string().max(10000).default(""),
     })).mutation(async ({ input, ctx }) => {
       await createExperimentLog({ ...input, ownerId: ctx.user.id });
       return { success: true as const };
@@ -70,6 +73,9 @@ export const appRouter = router({
       workDone: z.string().trim().min(1).max(10000),
       protocol: z.string().trim().min(1).max(5000),
       cellsSeeded: z.string().trim().min(1).max(255),
+      note: z.string().max(10000).default(""),
+      numericNote: z.string().max(10000).default(""),
+      issue: z.string().max(10000).default(""),
     })).mutation(async ({ input, ctx }) => {
       const { id, ...values } = input;
       await updateExperimentLog(id, ctx.user.id, values);
@@ -81,6 +87,37 @@ export const appRouter = router({
     }),
     deleteMany: protectedProcedure.input(z.object({ ids: z.array(z.number().int().positive()).max(500).optional() })).mutation(async ({ input, ctx }) => {
       await deleteExperimentLogs(input.ids, ctx.user.id);
+      return { success: true as const };
+    }),
+  }),
+  feedbacks: router({
+    mine: protectedProcedure.query(({ ctx }) => listMyFeedbacks(ctx.user.id)),
+    create: protectedProcedure.input(z.object({
+      category: z.enum(["chemical", "equipment", "supplies"]),
+      itemName: z.string().trim().min(1).max(255),
+      condition: z.string().trim().min(1).max(80),
+      remainingAmount: z.string().trim().max(100).optional(),
+      remainingUnit: z.enum(["µL", "mL", "L", "mg", "g"]).optional(),
+      usageCategory: z.string().trim().max(255).optional(),
+      description: z.string().trim().max(10000).optional(),
+    })).mutation(async ({ input, ctx }) => {
+      if (input.category === "chemical" && !["Hết hoàn toàn", "Sắp hết"].includes(input.condition)) throw new TRPCError({ code: "BAD_REQUEST", message: "Trạng thái hoá chất không hợp lệ." });
+      if (input.category === "chemical" && input.condition === "Sắp hết" && (!input.remainingAmount || !input.remainingUnit)) throw new TRPCError({ code: "BAD_REQUEST", message: "Vui lòng nhập lượng hoá chất còn lại và đơn vị." });
+      if (input.category === "equipment" && !["Không hoạt động", "Lỗi hoạt động"].includes(input.condition)) throw new TRPCError({ code: "BAD_REQUEST", message: "Trạng thái thiết bị không hợp lệ." });
+      if (input.category === "equipment" && !input.description) throw new TRPCError({ code: "BAD_REQUEST", message: "Vui lòng nhập miêu tả nhanh cho thiết bị." });
+      if (input.category === "supplies" && (input.condition !== "Hết" || !input.usageCategory)) throw new TRPCError({ code: "BAD_REQUEST", message: "Vui lòng nhập phân loại sử dụng cho vật tư." });
+      await createFeedback({ ...input, reporterId: ctx.user.id });
+      return { success: true as const };
+    }),
+    adminList: adminProcedure.query(() => listAdminFeedbacks()),
+    resolve: adminProcedure.input(z.object({ id: z.number().int().positive(), handledById: z.number().int().positive() })).mutation(async ({ input }) => {
+      const handler = await getUserById(input.handledById);
+      if (!handler || handler.role !== "admin" || handler.approvalStatus !== "approved") throw new TRPCError({ code: "BAD_REQUEST", message: "Admin xử lý không hợp lệ." });
+      try {
+        await resolveFeedback(input.id, input.handledById);
+      } catch (error) {
+        throw new TRPCError({ code: "CONFLICT", message: error instanceof Error ? error.message : "Phản ánh đã được xác nhận trước đó." });
+      }
       return { success: true as const };
     }),
   }),

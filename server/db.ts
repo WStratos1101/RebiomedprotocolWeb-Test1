@@ -1,7 +1,7 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createHash } from "node:crypto";
-import { calculators, chemicalRecipes, experimentLogs, experimentRuns, InsertUser, protocols, samples, users } from "../drizzle/schema";
+import { calculators, chemicalRecipes, experimentLogs, experimentRuns, feedbacks, InsertUser, protocols, samples, users } from "../drizzle/schema";
 import { seedChemicalRecipes, type ChemicalIngredient } from "@shared/chemicalRecipes";
 import { ENV } from "./_core/env";
 import { encryptPasswordForAccount } from "./_core/passwordVault";
@@ -31,15 +31,52 @@ async function ensureExperimentLogsTable(db: NonNullable<Awaited<ReturnType<type
       \`workDone\` text NOT NULL,
       \`protocol\` text NOT NULL,
       \`cellsSeeded\` varchar(255) NOT NULL,
+      \`note\` text NULL,
+      \`numericNote\` text NULL,
+      \`issue\` text NULL,
       \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
       \`updatedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (\`id\`)
-    )`).then(() => undefined).catch(error => {
+    )`).then(async () => {
+      for (const column of ["note", "numericNote", "issue"] as const) {
+        try {
+          await db.execute(sql.raw(`ALTER TABLE \`experimentLogs\` ADD COLUMN \`${column}\` text NULL`));
+        } catch (error) {
+          if ((error as { code?: string }).code !== "ER_DUP_FIELDNAME") throw error;
+        }
+      }
+    }).catch(error => {
       experimentLogsTableReady = null;
       throw error;
     });
   }
   await experimentLogsTableReady;
+}
+
+let feedbackTableReady: Promise<void> | null = null;
+
+async function ensureFeedbackTable(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  if (!feedbackTableReady) {
+    feedbackTableReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`feedbacks\` (
+      \`id\` int AUTO_INCREMENT NOT NULL,
+      \`reporterId\` int NOT NULL,
+      \`category\` varchar(32) NOT NULL,
+      \`itemName\` varchar(255) NOT NULL,
+      \`condition\` varchar(80) NOT NULL,
+      \`remainingAmount\` varchar(100) NULL,
+      \`remainingUnit\` varchar(10) NULL,
+      \`usageCategory\` varchar(255) NULL,
+      \`description\` text NULL,
+      \`resolvedById\` int NULL,
+      \`resolvedAt\` timestamp NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`)
+    )`).then(() => undefined).catch(error => {
+      feedbackTableReady = null;
+      throw error;
+    });
+  }
+  await feedbackTableReady;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -113,14 +150,14 @@ export async function listExperimentLogs(ownerId: number) {
   return db.select().from(experimentLogs).where(eq(experimentLogs.ownerId, ownerId)).orderBy(asc(experimentLogs.workDate), asc(experimentLogs.id));
 }
 
-export async function createExperimentLog(input: { ownerId: number; workDate: string; workDone: string; protocol: string; cellsSeeded: string }) {
+export async function createExperimentLog(input: { ownerId: number; workDate: string; workDone: string; protocol: string; cellsSeeded: string; note?: string; numericNote?: string; issue?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await ensureExperimentLogsTable(db);
   await db.insert(experimentLogs).values(input);
 }
 
-export async function updateExperimentLog(id: number, ownerId: number, input: { workDate: string; workDone: string; protocol: string; cellsSeeded: string }) {
+export async function updateExperimentLog(id: number, ownerId: number, input: { workDate: string; workDone: string; protocol: string; cellsSeeded: string; note?: string; numericNote?: string; issue?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await ensureExperimentLogsTable(db);
@@ -146,6 +183,37 @@ export async function deleteExperimentLogs(ids: number[] | undefined, ownerId: n
   if (ids.length > 0) {
     await db.delete(experimentLogs).where(and(ownerFilter, inArray(experimentLogs.id, ids)));
   }
+}
+
+export async function createFeedback(input: { reporterId: number; category: string; itemName: string; condition: string; remainingAmount?: string; remainingUnit?: string; usageCategory?: string; description?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await ensureFeedbackTable(db);
+  await db.insert(feedbacks).values(input);
+}
+
+export async function listMyFeedbacks(reporterId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  await ensureFeedbackTable(db);
+  return db.select().from(feedbacks).where(eq(feedbacks.reporterId, reporterId)).orderBy(desc(feedbacks.createdAt));
+}
+
+export async function listAdminFeedbacks() {
+  const db = await getDb();
+  if (!db) return [];
+  await ensureFeedbackTable(db);
+  const cutoff = new Date(Date.now() - 30 * 60 * 60 * 1000);
+  await db.delete(feedbacks).where(and(isNotNull(feedbacks.resolvedAt), lt(feedbacks.resolvedAt, cutoff)));
+  return db.select().from(feedbacks).orderBy(desc(feedbacks.createdAt));
+}
+
+export async function resolveFeedback(id: number, resolvedById: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await ensureFeedbackTable(db);
+  const result = await db.update(feedbacks).set({ resolvedById, resolvedAt: new Date() }).where(and(eq(feedbacks.id, id), isNull(feedbacks.resolvedAt)));
+  if (result[0].affectedRows === 0) throw new Error("Phản ánh không tồn tại hoặc đã được xác nhận trước đó.");
 }
 
 export async function createEmailUser(input: { username: string; email: string; name: string; password: string }) {

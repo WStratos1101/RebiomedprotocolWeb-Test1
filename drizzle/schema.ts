@@ -89,8 +89,26 @@ export const experimentLogs = mysqlTable("experimentLogs", {
   workDone: text("workDone").notNull(),
   protocol: text("protocol").notNull(),
   cellsSeeded: varchar("cellsSeeded", { length: 255 }).notNull(),
+  note: text("note"),
+  numericNote: text("numericNote"),
+  issue: text("issue"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const feedbacks = mysqlTable("feedbacks", {
+  id: int("id").autoincrement().primaryKey(),
+  reporterId: int("reporterId").notNull(),
+  category: varchar("category", { length: 32 }).notNull(),
+  itemName: varchar("itemName", { length: 255 }).notNull(),
+  condition: varchar("condition", { length: 80 }).notNull(),
+  remainingAmount: varchar("remainingAmount", { length: 100 }),
+  remainingUnit: varchar("remainingUnit", { length: 10 }),
+  usageCategory: varchar("usageCategory", { length: 255 }),
+  description: text("description"),
+  resolvedById: int("resolvedById"),
+  resolvedAt: timestamp("resolvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -101,3 +119,4 @@ export type Calculator = typeof calculators.$inferSelect;
 export type ChemicalRecipeRecord = typeof chemicalRecipes.$inferSelect;
 export type ExperimentRun = typeof experimentRuns.$inferSelect;
 export type ExperimentLog = typeof experimentLogs.$inferSelect;
+export type Feedback = typeof feedbacks.$inferSelect;
