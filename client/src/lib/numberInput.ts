@@ -1,10 +1,13 @@
 /**
- * Parse the calculator's Vietnamese number format:
- * - comma is the decimal separator: 1,25 -> 1.25
- * - dot is the thousands separator: 1.234.567,89 -> 1234567.89
+ * Parse calculator input using one unambiguous rule:
+ * - comma and dot are both accepted as the decimal separator
+ * - dot is never treated as a thousands separator
+ * - values containing more than one decimal separator are invalid
  */
 export function parseLocaleNumber(value: string | number): number {
   if (typeof value === "number") return value;
-  const normalized = value.trim().replace(/[\s\u00A0]/g, "").replace(/\./g, "").replace(/,/g, ".");
+  const compact = value.trim().replace(/[\s\u00A0]/g, "").replace(/\./g, ",");
+  if ((compact.match(/,/g) ?? []).length > 1) return Number.NaN;
+  const normalized = compact.replace(/,/g, ".");
   return normalized ? Number(normalized) : Number.NaN;
 }

@@ -7,9 +7,10 @@ describe("parseLocaleNumber", () => {
     expect(parseLocaleNumber("12,5")).toBeCloseTo(12.5);
   });
 
-  it("removes dot thousands separators before parsing decimals", () => {
-    expect(parseLocaleNumber("1.234")).toBe(1234);
-    expect(parseLocaleNumber("1.234.567,89")).toBeCloseTo(1234567.89);
+  it("treats dot as a decimal separator, never as thousands", () => {
+    expect(parseLocaleNumber("1.234")).toBeCloseTo(1.234);
+    expect(parseLocaleNumber("1,234")).toBeCloseTo(1.234);
+    expect(Number.isNaN(parseLocaleNumber("1.234,56"))).toBe(true);
   });
 
   it("rejects blank or malformed values", () => {
