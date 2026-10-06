@@ -63,10 +63,6 @@ export function ExperimentJournal({ userId, userName }: { userId?: number; userN
     }
   };
   const save = () => {
-    if (!draft.workDate || !draft.workDone.trim() || !draft.protocol.trim() || !draft.cellsSeeded.trim()) {
-      toast.error("Vui lòng điền đủ ngày làm, công việc, quy trình và số lượng tế bào đã seed.");
-      return;
-    }
     if (editingId) updateMutation.mutate({ id: editingId, ...draft });
     else createMutation.mutate(draft);
   };
