@@ -15,6 +15,7 @@ import {
   Beaker,
   BookOpen,
   Calculator,
+  Bell,
   Check,
   ClipboardCheck,
   ChevronRight,
@@ -154,6 +155,7 @@ export default function Home() {
   const canEdit = true;
   const contentQuery = trpc.content.all.useQuery(undefined, { retry: false });
   const teamQuery = trpc.team.list.useQuery(undefined, { enabled: isAdmin, retry: false });
+  const adminFeedbackQuery = trpc.feedbacks.adminList.useQuery(undefined, { enabled: isAdmin, retry: false, refetchInterval: 15000 });
   const logoutMutation = trpc.auth.logout.useMutation({ onSuccess: async () => { await authQuery.refetch(); setView("overview"); toast.success("Tạm biệt sau một ngày thí nghiệm"); } });
   const updateProfileMutation = trpc.auth.updateProfile.useMutation({ onSuccess: async () => { await authQuery.refetch(); toast.success("Hồ sơ User đã được cập nhật."); }, onError: error => toast.error(error.message) });
   const updateRoleMutation = trpc.team.updateRole.useMutation({ onSuccess: () => teamQuery.refetch(), onError: error => toast.error(error.message) });
@@ -173,6 +175,8 @@ export default function Home() {
   const deleteSampleMutation = trpc.content.deleteSample.useMutation({ onSuccess: async () => { await contentQuery.refetch(); toast.success("Đã xóa mục lý thuyết."); }, onError: error => toast.error(error.message) });
   const [view, setView] = useState<View>("overview");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
+  const [dismissedNotificationSignature, setDismissedNotificationSignature] = useState("");
   const [specialCategory, setSpecialCategory] = useState<SpecialCategory>("Hypoxia");
   const [draftCategory, setDraftCategory] = useState<"Custom" | SpecialCategory>("Custom");
   const [mobileNav, setMobileNav] = useState(false);
@@ -246,6 +250,19 @@ export default function Home() {
     return null;
   }, [c1, v1, c2, v2, volumeUnit, cellUnit, dilutionMode, dilutionFactorValue, dilutionInitialVolume, dilutionAddedVolume, manualSolutionVolume, dilutionTarget, dilutionVolumeUnits, dilutionConcentrationUnits, dilutionConcentrationMode, activeDilutionConcentrationUnits, selectedCalc]);
 
+  const pendingNotificationItems = useMemo(() => ({
+    accounts: (teamQuery.data ?? []).filter(member => member.approvalStatus === "pending"),
+    protocols: protocols.filter(protocol => protocol.status === "Bản nháp"),
+    tools: calculatorTools.filter(tool => tool.status === "Bản nháp"),
+    feedbacks: ((adminFeedbackQuery.data ?? []) as Array<{ id: number; resolvedAt?: Date | string | null }>).filter(item => !item.resolvedAt),
+  }), [teamQuery.data, protocols, calculatorTools, adminFeedbackQuery.data]);
+  const notificationSignature = useMemo(() => [
+    ...pendingNotificationItems.accounts.map(item => `account:${item.id}`),
+    ...pendingNotificationItems.protocols.map(item => `protocol:${item.id}`),
+    ...pendingNotificationItems.tools.map(item => `tool:${item.id}`),
+    ...pendingNotificationItems.feedbacks.map(item => `feedback:${item.id}`),
+  ].sort().join("|"), [pendingNotificationItems]);
+  const hasUnreadNotifications = isAdmin && Boolean(notificationSignature) && notificationSignature !== dismissedNotificationSignature;
   const currentView = navItems.find(item => item.id === view);
   const openProtocol = (protocol: Protocol) => { setSelectedProtocol(protocol); setView("protocols"); };
   const openSample = (sample: Sample) => { setSelectedSample(sample); setView("samples"); };
@@ -305,7 +322,7 @@ export default function Home() {
       {mobileNav && <button className="mobile-overlay" onClick={() => setMobileNav(false)} aria-label="Đóng menu" />}
 
       <main className="main-canvas">
-        <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20} /></button><div className="breadcrumb"><span>Rebiomed Protocol</span><ChevronRight size={13} /><strong>{currentView?.label}</strong></div></div><div className="topbar-actions"><div className="global-search"><Search size={15} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm quy trình, mẫu, chủ đề…" /><kbd>⌘ K</kbd></div><div className="account-menu"><button className="topbar-avatar" onClick={() => setAccountMenuOpen(current => !current)} aria-label="Mở tài khoản" aria-expanded={accountMenuOpen}><UserAvatar name={user?.name ?? (isAdmin ? "Admin" : "User")} /></button>{accountMenuOpen && <div className="account-popover"><div className="account-popover-head"><UserAvatar name={user?.name ?? (isAdmin ? "Admin" : "User")} /><div><strong>{user?.name || (isAdmin ? "Admin" : "Khách")}</strong><small>{user?.email || (isAdmin ? "Tài khoản quản trị" : "Chưa đăng nhập")}</small></div></div>{user ? <><button onClick={() => { setView(isAdmin ? "adminAccounts" : "userAccount"); setAccountMenuOpen(false); }}>Trang cá nhân</button><button className="account-logout" onClick={() => { logoutMutation.mutate(); setAccountMenuOpen(false); }}>Đăng xuất</button></> : <button onClick={() => { setView("auth"); setAccountMenuOpen(false); }}>Đăng nhập / Đăng ký</button>}</div>}</div></div></header>
+        <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Mở menu"><Menu size={20} /></button><div className="breadcrumb"><span>Rebiomed Protocol</span><ChevronRight size={13} /><strong>{currentView?.label}</strong></div></div><div className="topbar-actions"><div className="global-search"><Search size={15} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm quy trình, mẫu, chủ đề…" /><kbd>⌘ K</kbd></div>{isAdmin && <div className="notification-menu"><button type="button" className={`notification-trigger ${hasUnreadNotifications ? "has-unread" : ""}`} onClick={() => { setNotificationPanelOpen(current => !current); setDismissedNotificationSignature(notificationSignature); }} aria-label="Mở thông báo Admin" aria-expanded={notificationPanelOpen}><Bell size={18} />{hasUnreadNotifications && <span className="notification-dot" aria-label="Có thông báo mới">{pendingNotificationItems.accounts.length + pendingNotificationItems.protocols.length + pendingNotificationItems.tools.length + pendingNotificationItems.feedbacks.length}</span>}</button>{notificationPanelOpen && <div className="notification-popover"><div className="notification-popover-head"><strong>Thông báo Admin</strong><small>{hasUnreadNotifications ? "Có mục cần xử lý" : "Đã xem tất cả thông báo"}</small></div>{pendingNotificationItems.accounts.length > 0 && <button type="button" onClick={() => { setView("adminAccounts"); setNotificationPanelOpen(false); }}><span>Tài khoản chờ duyệt</span><b>{pendingNotificationItems.accounts.length}</b></button>}{pendingNotificationItems.protocols.length > 0 && <button type="button" onClick={() => { setView("adminAccounts"); setNotificationPanelOpen(false); }}><span>Quy trình chờ duyệt</span><b>{pendingNotificationItems.protocols.length}</b></button>}{pendingNotificationItems.tools.length > 0 && <button type="button" onClick={() => { setView("adminAccounts"); setNotificationPanelOpen(false); }}><span>Tool chờ duyệt</span><b>{pendingNotificationItems.tools.length}</b></button>}{pendingNotificationItems.feedbacks.length > 0 && <button type="button" onClick={() => { setView("adminFeedback"); setNotificationPanelOpen(false); }}><span>Phản ánh chưa xử lý</span><b>{pendingNotificationItems.feedbacks.length}</b></button>}{!pendingNotificationItems.accounts.length && !pendingNotificationItems.protocols.length && !pendingNotificationItems.tools.length && !pendingNotificationItems.feedbacks.length && <p className="notification-empty">Hiện không có mục nào cần xử lý.</p>}</div>}</div>}<div className="account-menu"><button className="topbar-avatar" onClick={() => setAccountMenuOpen(current => !current)} aria-label="Mở tài khoản" aria-expanded={accountMenuOpen}><UserAvatar name={user?.name ?? (isAdmin ? "Admin" : "User")} /></button>{accountMenuOpen && <div className="account-popover"><div className="account-popover-head"><UserAvatar name={user?.name ?? (isAdmin ? "Admin" : "User")} /><div><strong>{user?.name || (isAdmin ? "Admin" : "Khách")}</strong><small>{user?.email || (isAdmin ? "Tài khoản quản trị" : "Chưa đăng nhập")}</small></div></div>{user ? <><button onClick={() => { setView(isAdmin ? "adminAccounts" : "userAccount"); setAccountMenuOpen(false); }}>Trang cá nhân</button><button className="account-logout" onClick={() => { logoutMutation.mutate(); setAccountMenuOpen(false); }}>Đăng xuất</button></> : <button onClick={() => { setView("auth"); setAccountMenuOpen(false); }}>Đăng nhập / Đăng ký</button>}</div>}</div></div></header>
         <div className="page-wrap">
           {view === "overview" && <ExperimentJournal userId={user?.id} userName={user?.name} />}
           {view === "feedback" && <Suspense fallback={lazyFallback}><FeedbackView userId={user?.id} userName={user?.name} /></Suspense>}
