@@ -364,9 +364,10 @@ const seedCalculators = [
   { slug: "dilution", name: "Pha loãng nồng độ", category: "Dung dịch", formula: "C₁V₁ = C₂V₂", description: "Tính thể tích stock cần lấy hoặc nồng độ sau pha loãng.", config: { inputs: ["c1", "v1", "c2", "v2"], units: { c1: "mg/mL", v1: "µL", c2: "mg/mL", v2: "µL" } } },
   { slug: "viability", name: "Cell viability", category: "Cell culture", formula: "Sống / Tổng × 100", description: "Tính tỷ lệ sống từ số tế bào sống và tổng số tế bào.", config: { inputs: ["live", "total"], units: { live: "cells", total: "cells" } } },
   { slug: "molarity", name: "Molarity → mass", category: "Hóa chất", formula: "m = C × V × MW", description: "Quy đổi nồng độ mol sang khối lượng chất cần cân.", config: { inputs: ["concentration", "volume", "molecularWeight"], units: { concentration: "M", volume: "L", molecularWeight: "g/mol" } } },
-  { slug: "manual-cell-count", name: "Đếm tế bào bằng buồng đếm thủ công", category: "Cell counting", formula: "(TB trung bình / ô) × hệ số pha loãng × 10⁴", description: "Tính mật độ tế bào từ số tế bào đếm được trong buồng đếm thủ công.", config: { inputs: ["averageCells", "countedSquares", "dilutionFactor"], units: { averageCells: "cells", countedSquares: "ô", dilutionFactor: "×" } } },
+  { slug: "manual-cell-count", name: "Đếm tế bào bằng buồng đếm thủ công", category: "Cells", formula: "(TB trung bình / ô) × hệ số pha loãng × 10⁴", description: "Tính mật độ tế bào từ số tế bào đếm được trong buồng đếm thủ công.", config: { inputs: ["averageCells", "countedSquares", "dilutionFactor"], units: { averageCells: "cells", countedSquares: "ô", dilutionFactor: "×" } } },
   { slug: "cells-needed", name: "Tính số lượng tế bào cần", category: "Cell seeding", formula: "Mật độ mục tiêu × số đơn vị × thể tích / đơn vị", description: "Tính tổng số tế bào cần chuẩn bị cho các giếng hoặc đơn vị nuôi cấy.", config: { inputs: ["targetDensity", "unitCount", "volumePerUnit"], units: { targetDensity: "cells/mL", unitCount: "đơn vị", volumePerUnit: "mL" } } },
   { slug: "volume-to-take", name: "Tính thể tích cần lấy", category: "Cell seeding", formula: "V lấy = N mong muốn / N tổng × V tổng", description: "Tính thể tích cần hút từ suspension hiện có để thu được số tế bào mong muốn.", config: { inputs: ["desiredCells", "totalCells", "totalVolume"], units: { desiredCells: "cells", totalCells: "cells", totalVolume: "mL" } } },
+  { slug: "seeding", name: "Seeding", category: "Cells", formula: "Tổng môi trường = số đơn vị × thể tích mỗi đơn vị", description: "Tính tổng môi trường, thể tích suspension chứa tế bào cần lấy và môi trường cần bổ sung khi seed.", config: { kind: "seeding", defaultCountedSquares: 4, defaultSolutionVolume: 1, defaultDilutionFactor: 1.5, vessels: { "giếng 96": 100, "giếng 48": 250, "giếng 6": 1200, "flask T25": 2500 } } },
   { slug: "hypoxia-headspace", name: "Ước tính O₂ pha khí hệ kín", category: "Hypoxia", formula: "n(O₂) = P tuyệt đối × V khí × %O₂ / (R × T)", description: "Ước tính lượng O₂ pha khí và thời gian đến ngưỡng giả định; không thay cho đo oxy tại tế bào.", config: { model: "ideal-gas-headspace", reference: "https://www.mdpi.com/2073-4409/9/11/2456" } },
 ];
 
@@ -525,7 +526,7 @@ export async function deleteChemicalRecipeById(id: number) {
   if (result[0].affectedRows === 0) throw new Error("Không tìm thấy cách pha hoá chất.");
 }
 
-export async function createProtocolDraft(input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure"; steps?: { title: string; detail: string; time: string }[] }) {
+export async function createProtocolDraft(input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure"; steps?: { title: string; detail: string; time: string; calculatorIds?: string[] }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
@@ -539,20 +540,20 @@ export async function createSampleDraft(input: { name: string; description: stri
   await db.insert(samples).values({ code, name: input.name, groupName: "Bản nháp", status: "Bản nháp", description: input.description || "Mẫu mới được thêm vào kho Rebiomed Protocol.", properties: [{ label: "Trạng thái", value: "Chưa cập nhật" }], theory: input.description || "Bổ sung lý thuyết và dữ liệu tham chiếu cho mẫu này." });
 }
 
-export async function createCalculatorDraft(input: { name: string; formula: string; description: string; category?: "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] }) {
+export async function createCalculatorDraft(input: { name: string; formula: string; description: string; category?: "Chemicals" | "Cells" | "PCR" | "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
   await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] }, status: "Bản nháp", active: 1 });
 }
 
-export async function updateCalculatorById(id: number, input: { name: string; formula: string; description: string; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] }) {
+export async function updateCalculatorById(id: number, input: { name: string; formula: string; description: string; category?: "Chemicals" | "Cells" | "PCR" | "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(calculators).set({ name: input.name, formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] } }).where(eq(calculators.id, id));
+  await db.update(calculators).set({ name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] } }).where(eq(calculators.id, id));
 }
 
-export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string }[] }) {
+export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string; calculatorIds?: string[] }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await db.update(protocols).set({ title: input.title, summary: input.summary, owner: input.owner, ...(input.steps ? { steps: input.steps } : {}) }).where(eq(protocols.id, id));

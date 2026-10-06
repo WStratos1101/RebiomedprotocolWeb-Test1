@@ -144,14 +144,14 @@ export const appRouter = router({
   content: router({
     all: publicProcedure.query(() => getLabContent()),
     createDraft: publicProcedure
-      .input(z.object({ kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), category: z.enum(["Custom", "Hypoxia", "HighPressure"]).default("Custom"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80) })).optional() }))
+      .input(z.object({ kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), category: z.enum(["Custom", "Hypoxia", "HighPressure"]).default("Custom"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80), calculatorIds: z.array(z.string().max(120)).max(3).default([]) })).optional() }))
       .mutation(async ({ input }) => {
         if (input.kind === "protocol") await createProtocolDraft({ title: input.title, summary: input.body, owner: input.owner, category: input.category, steps: input.steps });
         else await createSampleDraft({ name: input.title, description: input.body });
         return { success: true } as const;
       }),
     createCalculator: publicProcedure
-      .input(z.object({ name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), category: z.enum(["Custom", "Hypoxia", "HighPressure"]).default("Custom"), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default(""), variables: z.array(z.object({ key: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), label: z.string().trim().min(1).max(120), unit: z.string().max(32) })).max(8).default([]) }))
+      .input(z.object({ name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), category: z.enum(["Chemicals", "Cells", "PCR", "Custom", "Hypoxia", "HighPressure"]).default("Custom"), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default(""), variables: z.array(z.object({ key: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), label: z.string().trim().min(1).max(120), unit: z.string().max(32) })).max(8).default([]) }))
       .mutation(async ({ input }) => {
         try {
           const variables = getFormulaVariables(input.formula);
@@ -165,7 +165,7 @@ export const appRouter = router({
         return { success: true } as const;
       }),
     updateCalculator: publicProcedure
-      .input(z.object({ id: z.number().int().positive(), name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default(""), variables: z.array(z.object({ key: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), label: z.string().trim().min(1).max(120), unit: z.string().max(32) })).max(8).default([]) }))
+      .input(z.object({ id: z.number().int().positive(), name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), category: z.enum(["Chemicals", "Cells", "PCR", "Custom", "Hypoxia", "HighPressure"]).default("Custom"), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default(""), variables: z.array(z.object({ key: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), label: z.string().trim().min(1).max(120), unit: z.string().max(32) })).max(8).default([]) }))
       .mutation(async ({ input, ctx }) => {
         const current = await getCalculatorById(input.id);
         if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy công cụ." });
@@ -182,7 +182,7 @@ export const appRouter = router({
         return { success: true } as const;
       }),
     updateDraft: publicProcedure
-      .input(z.object({ id: z.number().int().positive(), kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80) })).optional() }))
+      .input(z.object({ id: z.number().int().positive(), kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80), calculatorIds: z.array(z.string().max(120)).max(3).default([]) })).optional() }))
       .mutation(async ({ input, ctx }) => {
         if (input.kind === "protocol") {
           const current = await getProtocolById(input.id);
