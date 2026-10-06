@@ -10,7 +10,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
 import { sdk } from "./_core/sdk";
-import { createExperimentLog, createFeedback, deleteExperimentLog, deleteExperimentLogs, listAdminFeedbacks, listExperimentLogs, listMyFeedbacks, resolveFeedback, updateExperimentLog } from "./db";
+import { createExperimentLog, createFeedback, deleteExperimentLog, deleteExperimentLogs, deleteFeedback, listAdminFeedbacks, listExperimentLogs, listMyFeedbacks, resolveFeedback, updateExperimentLog } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -123,6 +123,10 @@ export const appRouter = router({
       if (input.category === "equipment" && !input.description) throw new TRPCError({ code: "BAD_REQUEST", message: "Vui lòng nhập miêu tả nhanh cho thiết bị." });
       if (input.category === "supplies" && (input.condition !== "Hết" || !input.usageCategory)) throw new TRPCError({ code: "BAD_REQUEST", message: "Vui lòng nhập phân loại sử dụng cho vật tư." });
       await createFeedback({ ...input, reporterId: ctx.user.id });
+      return { success: true as const };
+    }),
+    deleteMine: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      await deleteFeedback(input.id, ctx.user.id);
       return { success: true as const };
     }),
     adminList: adminProcedure.query(() => listAdminFeedbacks()),

@@ -205,6 +205,13 @@ export async function listMyFeedbacks(reporterId: number) {
   return db.select().from(feedbacks).where(eq(feedbacks.reporterId, reporterId)).orderBy(desc(feedbacks.createdAt));
 }
 
+export async function deleteFeedback(id: number, reporterId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await ensureFeedbackTable(db);
+  await db.delete(feedbacks).where(and(eq(feedbacks.id, id), eq(feedbacks.reporterId, reporterId)));
+}
+
 export async function listAdminFeedbacks() {
   const db = await getDb();
   if (!db) return [];
