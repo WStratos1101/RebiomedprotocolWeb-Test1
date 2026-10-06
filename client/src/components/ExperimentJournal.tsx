@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarDays, Check, FileDown, FilePenLine, Plus, Save, Trash2 } from "lucide-react";
+import { CalendarDays, Check, Eye, FileDown, FilePenLine, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,7 +55,7 @@ export function ExperimentJournal({ userId, userName }: { userId?: number; userN
     setExporting(format);
     try {
       await exportJournalData(logs, userName, format);
-      toast.success(`Đã mở tab xem trước và tải file ${format === "pdf" ? "PDF" : "Excel"} về máy.`);
+      toast.success(format === "preview" ? "Đã mở tab bản xem trước." : "Đã mở tab xem trước và tải file Excel về máy.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không thể xuất dữ liệu nhật ký.");
     } finally {
@@ -89,7 +89,7 @@ export function ExperimentJournal({ userId, userName }: { userId?: number; userN
         <div className="journal-actions"><span>Chỉ account chủ mới được điều chỉnh hoặc xoá.</span><div>{editingId && <Button variant="outline" onClick={cancelEdit}>Huỷ</Button>}<Button className="primary-cta" onClick={save} disabled={createMutation.isPending || updateMutation.isPending}><Save size={15} /> {editingId ? "Lưu thay đổi" : "Lưu nhật ký"}</Button></div></div>
       </section>
       <section className="content-panel journal-list">
-        <div className="panel-heading"><div><span className="panel-index">MY EXPERIMENT LOG / {logs.length} ENTRIES</span><h2>Lịch sử thí nghiệm</h2></div><div className="journal-heading-actions"><button className="icon-button journal-add-button" type="button" onClick={() => { setEditingId(null); setDraft(emptyDraft()); document.querySelector(".journal-editor")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} aria-label="Tạo mục nhật ký mới" title="Tạo mục nhật ký mới"><Plus size={20} /></button><Button variant="outline" disabled={!logs.length || exporting !== null} onClick={() => exportData("pdf")} title="Xuất PDF"><FileDown size={14} /> {exporting === "pdf" ? "Đang tạo PDF…" : "PDF"}</Button><Button variant="outline" disabled={!logs.length || exporting !== null} onClick={() => exportData("xlsx")} title="Xuất Excel"><FileDown size={14} /> {exporting === "xlsx" ? "Đang tạo Excel…" : "Excel"}</Button></div></div>
+        <div className="panel-heading"><div><span className="panel-index">MY EXPERIMENT LOG / {logs.length} ENTRIES</span><h2>Lịch sử thí nghiệm</h2></div><div className="journal-heading-actions"><button className="icon-button journal-add-button" type="button" onClick={() => { setEditingId(null); setDraft(emptyDraft()); document.querySelector(".journal-editor")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} aria-label="Tạo mục nhật ký mới" title="Tạo mục nhật ký mới"><Plus size={20} /></button><Button variant="outline" disabled={!logs.length || exporting !== null} onClick={() => exportData("preview")} title="Xem trước dữ liệu"><Eye size={14} /> {exporting === "preview" ? "Đang mở…" : "Xem trước"}</Button><Button variant="outline" disabled={!logs.length || exporting !== null} onClick={() => exportData("xlsx")} title="Xuất Excel"><FileDown size={14} /> {exporting === "xlsx" ? "Đang tạo Excel…" : "Excel"}</Button></div></div>
         {logsQuery.error && <div className="journal-error" role="alert"><strong>Không thể tải lịch sử thí nghiệm.</strong><span>{logsQuery.error.message}</span><Button variant="outline" onClick={() => logsQuery.refetch()}>Thử lại</Button></div>}
         {logsQuery.isLoading ? <div className="empty-state"><CalendarDays size={25} /><h3>Đang tải lịch sử</h3><p>Đang kiểm tra kết nối và dữ liệu nhật ký…</p></div> : logsQuery.error ? null : logs.length === 0 ? <div className="empty-state"><CalendarDays size={25} /><h3>Chưa có nhật ký</h3><p>Bắt đầu bằng cách lưu công việc hôm nay.</p></div> : <>
           <div className="journal-bulk-actions"><label><input type="checkbox" checked={allSelected} onChange={toggleAll} /> <span>{allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}</span></label><span>{selectedIds.size} đã chọn</span><Button variant="outline" disabled={!selectedIds.size || deleteManyMutation.isPending} onClick={deleteSelected}><Trash2 size={14} /> Xoá lựa chọn</Button><Button variant="outline" disabled={deleteManyMutation.isPending} onClick={deleteAll}><Trash2 size={14} /> Xoá toàn bộ</Button></div>

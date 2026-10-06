@@ -17,7 +17,7 @@ export type JournalExportLog = {
   issue?: string | null;
 };
 
-export type JournalExportFormat = "pdf" | "xlsx";
+export type JournalExportFormat = "preview" | "xlsx";
 
 type ExportColumn = { key: keyof JournalExportLog | "index"; label: string };
 
@@ -62,7 +62,7 @@ function buildPreviewMarkup(logs: JournalExportLog[], userName?: string | null) 
   </style></head><body><main class="preview-shell" id="export-sheet"><h1>Rebiomed Protocol — Lịch sử thí nghiệm</h1><p>Account: <strong>${escapeHtml(userName || "Không xác định")}</strong> · Số bản ghi: <strong>${logs.length}</strong></p><div class="notice">Bản xem trước được tạo tại máy cá nhân. Dữ liệu xuất không được lưu trên server.</div><table><thead><tr>${header}</tr></thead><tbody>${rows || `<tr><td colspan="${EXPORT_COLUMNS.length}">Không có dữ liệu nhật ký.</td></tr>`}</tbody></table><div class="print-hint">Thời điểm xuất: ${escapeHtml(new Date().toLocaleString("vi-VN"))}</div></main></body></html>`;
 }
 
-function fileName(format: JournalExportFormat) {
+function fileName(format: "xlsx") {
   const stamp = new Date().toISOString().slice(0, 10);
   return `rebiomed-experiment-journal-${stamp}.${format}`;
 }
@@ -75,25 +75,13 @@ export async function exportJournalData(logs: JournalExportLog[], userName: stri
   preview.document.close();
   await new Promise<void>(resolve => window.setTimeout(resolve, 120));
 
-  if (format === "xlsx") {
-    const XLSX = await import("xlsx");
-    const rows = logs.map((log, index) => Object.fromEntries(EXPORT_COLUMNS.map(column => [column.label, formatCell(log, column, index)])));
-    const workbook = XLSX.utils.book_new();
-    const sheet = XLSX.utils.json_to_sheet(rows);
-    sheet["!cols"] = EXPORT_COLUMNS.map(column => ({ wch: column.key === "index" ? 6 : column.key === "workDate" ? 14 : 25 }));
-    XLSX.utils.book_append_sheet(workbook, sheet, "Lịch sử thí nghiệm");
-    XLSX.writeFile(workbook, fileName("xlsx"));
-    return;
-  }
+  if (format === "preview") return;
 
-  const sheet = preview.document.getElementById("export-sheet");
-  if (!sheet) throw new Error("Không tạo được nội dung PDF xem trước.");
-  const { jsPDF } = await import("jspdf");
-  const documentPdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  await documentPdf.html(sheet, {
-    margin: [8, 8, 8, 8],
-    autoPaging: "text",
-    html2canvas: { scale: 1, useCORS: true, windowWidth: preview.document.documentElement.scrollWidth },
-    callback: pdf => pdf.save(fileName("pdf")),
-  });
+  const XLSX = await import("xlsx");
+  const rows = logs.map((log, index) => Object.fromEntries(EXPORT_COLUMNS.map(column => [column.label, formatCell(log, column, index)])));
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  sheet["!cols"] = EXPORT_COLUMNS.map(column => ({ wch: column.key === "index" ? 6 : column.key === "workDate" ? 14 : 25 }));
+  XLSX.utils.book_append_sheet(workbook, sheet, "Lịch sử thí nghiệm");
+  XLSX.writeFile(workbook, fileName("xlsx"));
 }
