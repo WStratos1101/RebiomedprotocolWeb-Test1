@@ -7,8 +7,14 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { exportJournalData, type JournalExportFormat } from "@/lib/journalExport";
 
-type JournalDraft = { workDate: string; workDone: string; protocol: string; cellsSeeded: string; note: string; numericNote: string; issue: string };
-const emptyDraft = (): JournalDraft => ({ workDate: new Date().toISOString().slice(0, 10), workDone: "", protocol: "", cellsSeeded: "", note: "", numericNote: "", issue: "" });
+type JournalTemplate = { id: string; name: string; fields: string[] };
+type JournalDraft = { templateName: string; experimentName: string; cellType: string; chemicalsUsed: string; cultureConditions: string; startTime: string; endTime: string; result: string; workDate: string; workDone: string; protocol: string; cellsSeeded: string; note: string; numericNote: string; issue: string };
+const templateFieldOptions = [
+  ["experimentName", "Tên thí nghiệm"], ["cellType", "Loại tế bào"], ["chemicalsUsed", "Hoá chất sử dụng"],
+  ["cultureConditions", "Điều kiện nuôi/xử lý"], ["startTime", "Thời gian bắt đầu"], ["endTime", "Thời gian kết thúc"], ["result", "Kết quả"],
+] as const;
+const defaultTemplate: JournalTemplate = { id: "standard", name: "Nhật ký thí nghiệm chuẩn", fields: templateFieldOptions.map(([key]) => key) };
+const emptyDraft = (): JournalDraft => ({ templateName: "", experimentName: "", cellType: "", chemicalsUsed: "", cultureConditions: "", startTime: "", endTime: "", result: "", workDate: new Date().toISOString().slice(0, 10), workDone: "", protocol: "", cellsSeeded: "", note: "", numericNote: "", issue: "" });
 
 export function ExperimentJournal({ userId, userName }: { userId?: number; userName?: string | null }) {
   const logsQuery = trpc.experimentLogs.list.useQuery(undefined, { enabled: Boolean(userId), retry: 3, retryDelay: attempt => Math.min(1000 * 2 ** attempt, 5000), refetchOnWindowFocus: false, staleTime: 15000 });
@@ -16,11 +22,27 @@ export function ExperimentJournal({ userId, userName }: { userId?: number; userN
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [exporting, setExporting] = useState<JournalExportFormat | null>(null);
+  const [templates, setTemplates] = useState<JournalTemplate[]>(() => { try { const saved = window.localStorage.getItem("rebiomed-journal-templates"); return saved ? [defaultTemplate, ...(JSON.parse(saved) as JournalTemplate[])] : [defaultTemplate]; } catch { return [defaultTemplate]; } });
+  const [selectedTemplateId, setSelectedTemplateId] = useState("standard");
+  const [templateEditorOpen, setTemplateEditorOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateFields, setTemplateFields] = useState<string[]>(defaultTemplate.fields);
   const createMutation = trpc.experimentLogs.create.useMutation({ onSuccess: async () => { await logsQuery.refetch(); setDraft(emptyDraft()); toast.success("Đã lưu nhật ký thí nghiệm vào lịch sử."); }, onError: error => toast.error(`Không thể lưu nhật ký: ${error.message}`) });
   const updateMutation = trpc.experimentLogs.update.useMutation({ onSuccess: async () => { await logsQuery.refetch(); setEditingId(null); setDraft(emptyDraft()); toast.success("Đã cập nhật nhật ký."); }, onError: error => toast.error(error.message) });
   const deleteMutation = trpc.experimentLogs.delete.useMutation({ onSuccess: async () => { await logsQuery.refetch(); toast.success("Đã xoá nhật ký."); }, onError: error => toast.error(error.message) });
   const deleteManyMutation = trpc.experimentLogs.deleteMany.useMutation({ onSuccess: async () => { await logsQuery.refetch(); setSelectedIds(new Set()); toast.success("Đã xoá các nhật ký đã chọn."); }, onError: error => toast.error(`Không thể xoá nhật ký: ${error.message}`) });
   const logs = logsQuery.data ?? [];
+  const activeTemplate = templates.find(template => template.id === selectedTemplateId) ?? defaultTemplate;
+  const hasTemplateField = (key: string) => activeTemplate.fields.includes(key);
+  const saveTemplate = () => {
+    const name = templateName.trim();
+    if (!name) return toast.error("Vui lòng nhập tên template.");
+    const template = { id: `template-${Date.now()}`, name, fields: templateFields };
+    const next = [...templates.filter(item => item.id !== "standard"), template];
+    setTemplates([defaultTemplate, ...next.filter(item => item.id !== "standard")]);
+    window.localStorage.setItem("rebiomed-journal-templates", JSON.stringify(next.filter(item => item.id !== "standard")));
+    setSelectedTemplateId(template.id); setDraft(current => ({ ...current, templateName: template.name })); setTemplateName(""); setTemplateEditorOpen(false); toast.success("Đã tạo template nhật ký.");
+  };
   const allSelected = logs.length > 0 && selectedIds.size === logs.length;
   const setField = (key: keyof JournalDraft, value: string) => setDraft(current => ({ ...current, [key]: value }));
   const toggleSelected = (id: number) => setSelectedIds(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -48,7 +70,7 @@ export function ExperimentJournal({ userId, userName }: { userId?: number; userN
     if (editingId) updateMutation.mutate({ id: editingId, ...draft });
     else createMutation.mutate(draft);
   };
-  const edit = (log: typeof logs[number]) => { setEditingId(log.id); setDraft({ workDate: log.workDate, workDone: log.workDone, protocol: log.protocol, cellsSeeded: log.cellsSeeded, note: log.note ?? "", numericNote: log.numericNote ?? "", issue: log.issue ?? "" }); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const edit = (log: typeof logs[number]) => { setEditingId(log.id); setDraft({ templateName: log.templateName ?? "", experimentName: log.experimentName ?? "", cellType: log.cellType ?? "", chemicalsUsed: log.chemicalsUsed ?? "", cultureConditions: log.cultureConditions ?? "", startTime: log.startTime ?? "", endTime: log.endTime ?? "", result: log.result ?? "", workDate: log.workDate, workDone: log.workDone, protocol: log.protocol, cellsSeeded: log.cellsSeeded, note: log.note ?? "", numericNote: log.numericNote ?? "", issue: log.issue ?? "" }); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const cancelEdit = () => { setEditingId(null); setDraft(emptyDraft()); };
   if (!userId) return <><PageIntro eyebrow="EXPERIMENT JOURNAL / PRIVATE WORKSPACE" title={<>Nhật ký <em>Thí nghiệm.</em></>} description="Đăng nhập User để lưu công việc và kết quả seed vào nhật ký riêng của bạn." /><section className="content-panel journal-login-note"><CalendarDays size={24} /><div><h2>Nhật ký riêng theo account</h2><p>Mỗi tài khoản có một bảng độc lập. Chỉ chủ tài khoản mới có thể xem, sửa hoặc xoá các dòng nhật ký.</p></div></section></>;
   return <>
@@ -56,10 +78,16 @@ export function ExperimentJournal({ userId, userName }: { userId?: number; userN
     <section className="journal-layout">
       <section className="content-panel journal-editor">
         <div className="panel-heading"><div><span className="panel-index">{editingId ? "EDIT ENTRY" : "NEW ENTRY"}</span><h2>{editingId ? "Chỉnh sửa nhật ký" : "Ghi lại một ngày làm việc"}</h2></div><FilePenLine size={20} /></div>
-        <div className="journal-fields"><label className="field-label">Ngày làm<Input type="date" value={draft.workDate} onChange={event => setField("workDate", event.target.value)} /></label><label className="field-label">Số lượng tế bào đã seed<Input value={draft.cellsSeeded} onChange={event => setField("cellsSeeded", event.target.value)} placeholder="Ví dụ: 2 × 10⁵ cell/giếng" /></label></div>
+        <div className="journal-template-bar"><label className="field-label">Mẫu biểu<select value={selectedTemplateId} onChange={event => { const next = templates.find(template => template.id === event.target.value) ?? defaultTemplate; setSelectedTemplateId(next.id); setDraft(current => ({ ...current, templateName: next.name })); }}>{templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label><Button variant="outline" onClick={() => setTemplateEditorOpen(current => !current)}>{templateEditorOpen ? "Đóng tạo template" : "Tạo template"}</Button></div>{templateEditorOpen && <div className="journal-template-editor"><label className="field-label">Tên template<Input value={templateName} onChange={event => setTemplateName(event.target.value)} placeholder="Ví dụ: Nuôi cấy Hypoxia" /></label><div className="template-field-checks">{templateFieldOptions.map(([key, label]) => <label key={key}><input type="checkbox" checked={templateFields.includes(key)} onChange={() => setTemplateFields(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key])} /> {label}</label>)}</div><Button className="primary-cta" onClick={saveTemplate}>Lưu template</Button></div>}<div className="journal-fields"><label className="field-label">Ngày làm<Input type="date" value={draft.workDate} onChange={event => setField("workDate", event.target.value)} /></label><label className="field-label">Số lượng tế bào đã seed<Input value={draft.cellsSeeded} onChange={event => setField("cellsSeeded", event.target.value)} placeholder="Ví dụ: 2 × 10⁵ cell/giếng" /></label></div>
+        {hasTemplateField("experimentName") && <label className="field-label">Tên thí nghiệm<Input value={draft.experimentName} onChange={event => setField("experimentName", event.target.value)} placeholder="Tên thí nghiệm" /></label>}
+        {hasTemplateField("cellType") && <label className="field-label">Loại tế bào<Input value={draft.cellType} onChange={event => setField("cellType", event.target.value)} placeholder="Ví dụ: HSC primary" /></label>}
+        {hasTemplateField("chemicalsUsed") && <label className="field-label">Hoá chất sử dụng<Textarea value={draft.chemicalsUsed} onChange={event => setField("chemicalsUsed", event.target.value)} placeholder="Tên hoá chất, nồng độ hoặc lot…" /></label>}
+        {hasTemplateField("cultureConditions") && <label className="field-label">Điều kiện nuôi/xử lý<Textarea value={draft.cultureConditions} onChange={event => setField("cultureConditions", event.target.value)} placeholder="Nhiệt độ, thời gian, O₂, áp suất…" /></label>}
+        {hasTemplateField("startTime") && <label className="field-label">Thời gian bắt đầu<Input type="datetime-local" value={draft.startTime} onChange={event => setField("startTime", event.target.value)} /></label>}
+        {hasTemplateField("endTime") && <label className="field-label">Thời gian kết thúc<Input type="datetime-local" value={draft.endTime} onChange={event => setField("endTime", event.target.value)} /></label>}
         <label className="field-label">Công việc đã làm<Textarea value={draft.workDone} onChange={event => setField("workDone", event.target.value)} placeholder="Ghi các việc đã thực hiện, quan sát hoặc kết quả chính…" /></label>
         <label className="field-label">Quy trình đã làm<Textarea value={draft.protocol} onChange={event => setField("protocol", event.target.value)} placeholder="Tên quy trình, phiên bản hoặc các bước đã dùng…" /></label>
-        <label className="field-label">Ghi chú<Textarea value={draft.note} onChange={event => setField("note", event.target.value)} placeholder="Ghi chú chung cho ngày làm việc…" /></label>
+        {hasTemplateField("result") && <label className="field-label">Kết quả<Textarea value={draft.result} onChange={event => setField("result", event.target.value)} placeholder="Kết quả cuối cùng hoặc kết luận…" /></label>}<label className="field-label">Ghi chú<Textarea value={draft.note} onChange={event => setField("note", event.target.value)} placeholder="Ghi chú chung cho ngày làm việc…" /></label>
         <label className="field-label">Ghi chú số liệu<Textarea value={draft.numericNote} onChange={event => setField("numericNote", event.target.value)} placeholder="Ghi số liệu, kết quả đo hoặc thông số quan trọng…" /></label>
         <label className="field-label">Vấn đề bất cập<Textarea value={draft.issue} onChange={event => setField("issue", event.target.value)} placeholder="Ghi các vấn đề, sai lệch hoặc điều cần cải thiện…" /></label>
         <div className="journal-actions"><span>Chỉ account chủ mới được điều chỉnh hoặc xoá.</span><div>{editingId && <Button variant="outline" onClick={cancelEdit}>Huỷ</Button>}<Button className="primary-cta" onClick={save} disabled={createMutation.isPending || updateMutation.isPending}><Save size={15} /> {editingId ? "Lưu thay đổi" : "Lưu nhật ký"}</Button></div></div>

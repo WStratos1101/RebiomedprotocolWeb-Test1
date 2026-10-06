@@ -27,6 +27,14 @@ async function ensureExperimentLogsTable(db: NonNullable<Awaited<ReturnType<type
     experimentLogsTableReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`experimentLogs\` (
       \`id\` int AUTO_INCREMENT NOT NULL,
       \`ownerId\` int NOT NULL,
+      \`templateName\` varchar(160) NULL,
+      \`experimentName\` varchar(255) NULL,
+      \`cellType\` varchar(255) NULL,
+      \`chemicalsUsed\` text NULL,
+      \`cultureConditions\` text NULL,
+      \`startTime\` varchar(32) NULL,
+      \`endTime\` varchar(32) NULL,
+      \`result\` text NULL,
       \`workDate\` varchar(20) NOT NULL,
       \`workDone\` text NOT NULL,
       \`protocol\` text NOT NULL,
@@ -40,7 +48,7 @@ async function ensureExperimentLogsTable(db: NonNullable<Awaited<ReturnType<type
     )`).then(async () => {
       const result = await db.execute(sql`SELECT COLUMN_NAME FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'experimentLogs'`);
       const columns = new Set(((result[0] ?? []) as unknown as Array<{ COLUMN_NAME?: string }>).map(row => row.COLUMN_NAME));
-      for (const column of ["note", "numericNote", "issue"] as const) {
+      for (const column of ["templateName", "experimentName", "cellType", "chemicalsUsed", "cultureConditions", "startTime", "endTime", "result", "note", "numericNote", "issue"] as const) {
         if (!columns.has(column)) await db.execute(sql.raw(`ALTER TABLE \`experimentLogs\` ADD COLUMN \`${column}\` text NULL`));
       }
     }).catch(error => {
@@ -148,14 +156,14 @@ export async function listExperimentLogs(ownerId: number) {
   return db.select().from(experimentLogs).where(eq(experimentLogs.ownerId, ownerId)).orderBy(asc(experimentLogs.workDate), asc(experimentLogs.id));
 }
 
-export async function createExperimentLog(input: { ownerId: number; workDate: string; workDone: string; protocol: string; cellsSeeded: string; note?: string; numericNote?: string; issue?: string }) {
+export async function createExperimentLog(input: { ownerId: number; templateName?: string; experimentName?: string; cellType?: string; chemicalsUsed?: string; cultureConditions?: string; startTime?: string; endTime?: string; result?: string; workDate: string; workDone: string; protocol: string; cellsSeeded: string; note?: string; numericNote?: string; issue?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await ensureExperimentLogsTable(db);
   await db.insert(experimentLogs).values(input);
 }
 
-export async function updateExperimentLog(id: number, ownerId: number, input: { workDate: string; workDone: string; protocol: string; cellsSeeded: string; note?: string; numericNote?: string; issue?: string }) {
+export async function updateExperimentLog(id: number, ownerId: number, input: { templateName?: string; experimentName?: string; cellType?: string; chemicalsUsed?: string; cultureConditions?: string; startTime?: string; endTime?: string; result?: string; workDate: string; workDone: string; protocol: string; cellsSeeded: string; note?: string; numericNote?: string; issue?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await ensureExperimentLogsTable(db);
