@@ -218,6 +218,13 @@ export const appRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => { const current = await getCalculatorById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy công cụ." }); if (current.status !== "Bản nháp" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá công cụ đã duyệt." }); await deleteCalculatorById(input.id); return { success: true } as const; }),
     approveProtocol: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setProtocolStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
+    rejectProtocol: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
+      const current = await getProtocolById(input.id);
+      if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy quy trình." });
+      if (current.status === "Đã duyệt") throw new TRPCError({ code: "FORBIDDEN", message: "Không thể dùng thao tác này với quy trình đã duyệt." });
+      await deleteProtocolById(input.id);
+      return { success: true as const };
+    }),
     approveSample: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setSampleStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
     approveCalculator: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setCalculatorStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
   }),
