@@ -7,7 +7,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["admin", "researcher", "viewer", "user"]).default("researcher").notNull(),
+  role: mysqlEnum("role", ["admin", "supporter", "researcher", "viewer", "user"]).default("researcher").notNull(),
   approvalStatus: mysqlEnum("approvalStatus", ["pending", "approved", "rejected"]).default("approved").notNull(),
   passwordHash: varchar("passwordHash", { length: 255 }),
   passwordVault: text("passwordVault"),

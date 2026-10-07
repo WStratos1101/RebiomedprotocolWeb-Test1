@@ -10,6 +10,8 @@ const t = initTRPC.context<TrpcContext>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
+export const isAdminLikeRole = (role: string | null | undefined) => role === "admin" || role === "supporter";
+
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
 
@@ -31,7 +33,7 @@ export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || ctx.user.role !== 'admin') {
+    if (!ctx.user || !isAdminLikeRole(ctx.user.role)) {
       throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
 
@@ -47,7 +49,7 @@ export const adminProcedure = t.procedure.use(
 const requireResearcher = t.middleware(async opts => {
   const { ctx, next } = opts;
 
-  if (!ctx.user || !["admin", "researcher", "user"].includes(ctx.user.role)) {
+  if (!ctx.user || !["admin", "supporter", "researcher", "user"].includes(ctx.user.role)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Researcher access required" });
   }
 
@@ -58,7 +60,7 @@ export const researcherProcedure = t.procedure.use(requireResearcher);
 
 const requireViewer = t.middleware(async opts => {
   const { ctx, next } = opts;
-  if (!ctx.user || !["admin", "researcher", "viewer", "user"].includes(ctx.user.role)) {
+  if (!ctx.user || !["admin", "supporter", "researcher", "viewer", "user"].includes(ctx.user.role)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Workspace viewer access required" });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });

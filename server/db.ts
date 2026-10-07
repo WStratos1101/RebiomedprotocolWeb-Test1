@@ -9,6 +9,31 @@ import { hashPassword } from "./_core/password";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let experimentLogsTableReady: Promise<void> | null = null;
+let supporterIdentityReady: Promise<void> | null = null;
+
+const SUPPORTER_USERNAME = "supporter";
+const SUPPORTER_NAME = "website supporter";
+const LEGACY_SUPPORTER_NAME = "bao nguyen gia";
+
+export function isSupporterAccount(user: { role?: string | null; username?: string | null; name?: string | null } | null | undefined) {
+  const username = user?.username?.trim().toLowerCase();
+  const name = user?.name?.trim().toLowerCase();
+  return user?.role === "supporter" || username === SUPPORTER_USERNAME || name === SUPPORTER_NAME || name === LEGACY_SUPPORTER_NAME;
+}
+
+function normalizeSupporterUser<T extends { role: string; username?: string | null; name?: string | null; email?: string | null }>(user: T): T {
+  return isSupporterAccount(user) ? { ...user, username: "Supporter", name: "Website Supporter", email: null, role: "supporter" } : user;
+}
+
+async function ensureSupporterIdentity(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  if (!supporterIdentityReady) {
+    supporterIdentityReady = db.execute(sql`UPDATE users SET username = 'Supporter', name = 'Website Supporter', email = NULL WHERE LOWER(TRIM(COALESCE(name, ''))) = ${LEGACY_SUPPORTER_NAME} OR LOWER(TRIM(COALESCE(username, ''))) = ${LEGACY_SUPPORTER_NAME} LIMIT 1`).then(() => undefined).catch(error => {
+      supporterIdentityReady = null;
+      console.warn("[Supporter] Could not normalize legacy account:", error);
+    });
+  }
+  await supporterIdentityReady;
+}
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
@@ -121,8 +146,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
+  await ensureSupporterIdentity(db);
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result[0];
+  return result[0] ? normalizeSupporterUser(result[0]) : undefined;
 }
 
 export async function getUserByEmail(email: string) {
@@ -135,18 +161,20 @@ export async function getUserByEmail(email: string) {
 export async function getUserById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
+  await ensureSupporterIdentity(db);
   const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return result[0];
+  return result[0] ? normalizeSupporterUser(result[0]) : undefined;
 }
 
 export async function getUserByUsernameOrEmail(identifier: string) {
   const db = await getDb();
   if (!db) return undefined;
+  await ensureSupporterIdentity(db);
   const normalized = identifier.trim();
   const result = normalized.includes("@")
     ? await db.select().from(users).where(eq(users.email, normalized.toLowerCase())).limit(1)
     : await db.select().from(users).where(eq(users.username, normalized)).limit(1);
-  return result[0];
+  return result[0] ? normalizeSupporterUser(result[0]) : undefined;
 }
 
 export async function listExperimentLogs(ownerId: number) {
@@ -254,7 +282,7 @@ export async function updateUserApproval(id: number, approvalStatus: "pending" |
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const target = await getUserById(id);
-  if (target?.username?.toLowerCase() === "wstratos" && approvalStatus !== "approved") {
+  if ((target?.username?.toLowerCase() === "wstratos" || isSupporterAccount(target)) && approvalStatus !== "approved") {
     throw new Error("Không thể thu hồi quyền truy cập của tài khoản hệ thống.");
   }
   await db.update(users).set({ approvalStatus }).where(eq(users.id, id));
@@ -265,7 +293,7 @@ export async function deleteUserById(id: number) {
   if (!db) throw new Error("Database is not available");
   const target = await getUserById(id);
   if (!target) return false;
-  if (target.role === "admin" || target.username?.toLowerCase() === "wstratos") {
+  if (target.role === "admin" || target.role === "supporter" || target.username?.toLowerCase() === "wstratos" || isSupporterAccount(target)) {
     throw new Error("Chỉ có thể xoá tài khoản User; tài khoản Admin được bảo vệ.");
   }
   await db.delete(users).where(eq(users.id, id));
@@ -883,18 +911,20 @@ export async function deleteCalculatorById(id: number) {
 export async function listTeamMembers(viewerUsername?: string | null) {
   const db = await getDb();
   if (!db) return [];
+  await ensureSupporterIdentity(db);
   const members = await db.select({ id: users.id, username: users.username, name: users.name, email: users.email, role: users.role, approvalStatus: users.approvalStatus, loginMethod: users.loginMethod, lastSignedIn: users.lastSignedIn }).from(users).orderBy(asc(users.id));
-  if (viewerUsername?.trim().toLowerCase() === "wstratos") return members;
-  return members.filter(member => !(member.role === "admin" && member.name?.trim().toLowerCase() === "bao nguyen gia"));
+  return members.map(normalizeSupporterUser);
 }
 
-export async function updateUserRole(id: number, role: "admin" | "user") {
+export async function updateUserRole(id: number, role: "admin" | "supporter" | "user") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const target = await getUserById(id);
   if (target?.username?.toLowerCase() === "wstratos" && role !== "admin") {
     throw new Error("Không thể hạ quyền của tài khoản hệ thống.");
   }
+  if (isSupporterAccount(target) && role !== "supporter") throw new Error("Không thể hạ quyền của tài khoản Supporter.");
+  if (role === "supporter" && !isSupporterAccount(target)) throw new Error("Quyền Supporter chỉ dành cho tài khoản được chỉ định.");
   await db.update(users).set({ role }).where(eq(users.id, id));
 }
 

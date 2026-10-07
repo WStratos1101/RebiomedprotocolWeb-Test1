@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { getFormulaVariables } from "@shared/formulaMath";
 import { systemRouter } from "./_core/systemRouter";
-import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, isAdminLikeRole, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { verifyPassword } from "./_core/password";
 import { decryptPasswordForAccount } from "./_core/passwordVault";
 import { createCalculatorDraft, createChemicalRecipe, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteChemicalRecipeById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getChemicalRecipeById, getLabContent, getProtocolById, getSampleById, getUserByEmail, getUserById, getUserByUsernameOrEmail, listChemicalRecipes, listTeamMembers, setCalculatorStatus, setChemicalRecipeStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateChemicalRecipe, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserProfile, updateUserRole } from "./db";
@@ -15,23 +15,24 @@ import { createExperimentLog, createFeedback, deleteExperimentLog, deleteExperim
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(({ ctx }) => ctx.user ? { id: ctx.user.id, username: ctx.user.username, name: ctx.user.name, email: ctx.user.email, role: ctx.user.role === "admin" ? "admin" as const : "user" as const, approvalStatus: ctx.user.approvalStatus } : null),
+    me: publicProcedure.query(({ ctx }) => ctx.user ? { id: ctx.user.id, username: ctx.user.username, name: ctx.user.name, email: ctx.user.email, role: isAdminLikeRole(ctx.user.role) ? "admin" as const : "user" as const, isSupporter: ctx.user.role === "supporter", approvalStatus: ctx.user.approvalStatus } : null),
     adminLogin: publicProcedure.input(z.object({ identifier: z.string().trim().min(1).max(320), password: z.string().min(1).max(200) })).mutation(async ({ input, ctx }) => {
       const user = await getUserByUsernameOrEmail(input.identifier);
-      if (!user || user.role !== "admin" || user.approvalStatus !== "approved" || !verifyPassword(input.password, user.passwordHash)) throw new TRPCError({ code: "UNAUTHORIZED", message: "Tên đăng nhập hoặc mật khẩu admin không đúng." });
+      if (!user || !isAdminLikeRole(user.role) || user.approvalStatus !== "approved" || !verifyPassword(input.password, user.passwordHash)) throw new TRPCError({ code: "UNAUTHORIZED", message: "Tên đăng nhập hoặc mật khẩu admin không đúng." });
       const token = await sdk.createSessionToken(user.openId, { name: user.name ?? user.username ?? "Admin" });
       ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
       return { id: user.id, username: user.username, name: user.name, email: user.email, role: "admin" as const };
     }),
     userLogin: publicProcedure.input(z.object({ identifier: z.string().trim().min(1).max(320), password: z.string().min(1).max(200) })).mutation(async ({ input, ctx }) => {
       const user = await getUserByUsernameOrEmail(input.identifier);
-      if (!user || user.role === "admin" || user.approvalStatus !== "approved" || !verifyPassword(input.password, user.passwordHash)) throw new TRPCError({ code: "UNAUTHORIZED", message: "Tài khoản chưa được duyệt hoặc thông tin đăng nhập không đúng." });
+      if (!user || isAdminLikeRole(user.role) || user.approvalStatus !== "approved" || !verifyPassword(input.password, user.passwordHash)) throw new TRPCError({ code: "UNAUTHORIZED", message: "Tài khoản chưa được duyệt hoặc thông tin đăng nhập không đúng." });
       const token = await sdk.createSessionToken(user.openId, { name: user.name ?? user.username ?? "User" });
       ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
       return { id: user.id, username: user.username, name: user.name, email: user.email, role: "user" as const };
     }),
     register: publicProcedure.input(z.object({ username: z.string().trim().min(3).max(80).regex(/^[A-Za-z0-9_.-]+$/), name: z.string().trim().min(1).max(160), email: z.string().trim().email().max(320), password: z.string().min(8).max(200) })).mutation(async ({ input }) => {
       if (!process.env.REBIOMED_PASSWORD_VAULT_KEY) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Chức năng đăng ký đang được cấu hình." });
+      if (input.username.toLowerCase() === "supporter") throw new TRPCError({ code: "CONFLICT", message: "Username này được dành riêng cho account Supporter." });
       try { await createEmailUser(input); } catch (error) {
         if (error instanceof Error && "code" in error && error.code === "ER_DUP_ENTRY") throw new TRPCError({ code: "CONFLICT", message: "Username hoặc email đã tồn tại." });
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Không thể tạo tài khoản lúc này." });
@@ -39,7 +40,7 @@ export const appRouter = router({
       return { success: true as const, message: "Tài khoản đã được đăng ký với quyền User." };
     }),
     updateProfile: publicProcedure.input(z.object({ email: z.string().trim().email().max(320), currentPassword: z.string().min(1).max(200), newPassword: z.string().min(8).max(200).optional() })).mutation(async ({ input, ctx }) => {
-      if (!ctx.user || ctx.user.role === "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ User mới có thể chỉnh sửa hồ sơ ở mục này." });
+      if (!ctx.user || isAdminLikeRole(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ User mới có thể chỉnh sửa hồ sơ ở mục này." });
       if (!verifyPassword(input.currentPassword, ctx.user.passwordHash)) throw new TRPCError({ code: "UNAUTHORIZED", message: "Mật khẩu hiện tại không đúng." });
       const normalizedEmail = input.email.toLowerCase();
       const duplicate = await getUserByEmail(normalizedEmail);
@@ -132,7 +133,7 @@ export const appRouter = router({
     adminList: adminProcedure.query(() => listAdminFeedbacks()),
     resolve: adminProcedure.input(z.object({ id: z.number().int().positive(), handledById: z.number().int().positive() })).mutation(async ({ input }) => {
       const handler = await getUserById(input.handledById);
-      if (!handler || handler.role !== "admin" || handler.approvalStatus !== "approved") throw new TRPCError({ code: "BAD_REQUEST", message: "Admin xử lý không hợp lệ." });
+      if (!handler || !isAdminLikeRole(handler.role) || handler.approvalStatus !== "approved") throw new TRPCError({ code: "BAD_REQUEST", message: "Admin xử lý không hợp lệ." });
       try {
         await resolveFeedback(input.id, input.handledById);
       } catch (error) {
@@ -169,7 +170,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const current = await getCalculatorById(input.id);
         if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy công cụ." });
-        if (current.status !== "Bản nháp" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được sửa công cụ đã duyệt." });
+        if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được sửa công cụ đã duyệt." });
         try {
           const variables = getFormulaVariables(input.formula);
           if (variables.length > 8) throw new Error("Công thức cần tối đa 8 biến.");
@@ -187,13 +188,13 @@ export const appRouter = router({
         if (input.kind === "protocol") {
           const current = await getProtocolById(input.id);
           if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy quy trình." });
-          if (current.status === "Đã duyệt" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được sửa bản đã duyệt." });
+          if (current.status === "Đã duyệt" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được sửa bản đã duyệt." });
           await updateProtocolDraft(input.id, { title: input.title, summary: input.body, owner: input.owner, category: input.category, steps: input.steps });
         }
         else {
           const current = await getSampleById(input.id);
           if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy mục lý thuyết." });
-          if (current.status !== "Bản nháp" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được sửa mục đã duyệt." });
+          if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được sửa mục đã duyệt." });
           await updateSampleDraft(input.id, { name: input.title, description: input.body });
         }
         return { success: true } as const;
@@ -203,7 +204,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const current = await getProtocolById(input.id);
         if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy quy trình." });
-        if (current.status === "Đã duyệt" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá bản đã duyệt." });
+        if (current.status === "Đã duyệt" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá bản đã duyệt." });
         await deleteProtocolById(input.id);
         return { success: true } as const;
       }),
@@ -218,13 +219,13 @@ export const appRouter = router({
     deleteSample: publicProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
       const current = await getSampleById(input.id);
       if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy mục lý thuyết." });
-      if (current.status !== "Bản nháp" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá mục đã duyệt." });
+      if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá mục đã duyệt." });
       await deleteSampleById(input.id);
       return { success: true as const };
     }),
     deleteCalculator: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
-      .mutation(async ({ input, ctx }) => { const current = await getCalculatorById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy công cụ." }); if (current.status !== "Bản nháp" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá công cụ đã duyệt." }); await deleteCalculatorById(input.id); return { success: true } as const; }),
+      .mutation(async ({ input, ctx }) => { const current = await getCalculatorById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy công cụ." }); if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá công cụ đã duyệt." }); await deleteCalculatorById(input.id); return { success: true } as const; }),
     approveProtocol: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setProtocolStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
     rejectProtocol: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
       const current = await getProtocolById(input.id);
@@ -273,8 +274,8 @@ export const appRouter = router({
       note: z.string().max(5000).default(""),
       ingredients: z.array(z.object({ name: z.string().trim().min(1).max(255), quantity: z.number().nonnegative().optional(), unit: z.string().max(32).optional(), stockValue: z.number().nonnegative().optional(), stockUnit: z.string().max(32).optional(), form: z.string().trim().min(1).max(64), note: z.string().max(1000).optional(), finalTopUp: z.boolean().optional() })).min(1).max(100),
       method: z.string().trim().min(1).max(20000),
-    })).mutation(async ({ input, ctx }) => { const current = await getChemicalRecipeById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy cách pha hoá chất." }); if (current.status !== "Bản nháp" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được chỉnh sửa cách pha đã duyệt." }); const { id, ...recipe } = input; await updateChemicalRecipe(id, recipe); return { success: true as const }; }),
-    delete: publicProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { const current = await getChemicalRecipeById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy cách pha hoá chất." }); if (current.status !== "Bản nháp" && ctx.user?.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá cách pha đã duyệt." }); await deleteChemicalRecipeById(input.id); return { success: true as const }; }),
+    })).mutation(async ({ input, ctx }) => { const current = await getChemicalRecipeById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy cách pha hoá chất." }); if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được chỉnh sửa cách pha đã duyệt." }); const { id, ...recipe } = input; await updateChemicalRecipe(id, recipe); return { success: true as const }; }),
+    delete: publicProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { const current = await getChemicalRecipeById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy cách pha hoá chất." }); if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá cách pha đã duyệt." }); await deleteChemicalRecipeById(input.id); return { success: true as const }; }),
     approve: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setChemicalRecipeStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
   }),
 
@@ -284,7 +285,7 @@ export const appRouter = router({
       ctx.res.setHeader("Cache-Control", "private, no-store");
       const target = await getUserById(input.id);
       if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
-      if (target.role === "admin" && target.id !== ctx.user.id && ctx.user.username?.toLowerCase() !== "wstratos") {
+      if (isAdminLikeRole(target.role) && target.id !== ctx.user.id && ctx.user.username?.toLowerCase() !== "wstratos") {
         console.warn("[PasswordView] denied", { actorId: ctx.user.id, targetId: target.id });
         throw new TRPCError({ code: "FORBIDDEN", message: "Không có quyền xem mật khẩu của tài khoản này." });
       }
@@ -314,7 +315,7 @@ export const appRouter = router({
     revokeAccess: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
       const target = await getUserById(input.id);
       if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
-      if (target.role === "admin" || target.username?.toLowerCase() === "wstratos") {
+      if (isAdminLikeRole(target.role) || target.username?.toLowerCase() === "wstratos") {
         throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ có thể thu hồi quyền truy cập của tài khoản User." });
       }
       await updateUserApproval(input.id, "rejected");
@@ -323,7 +324,7 @@ export const appRouter = router({
     deleteUser: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
       const target = await getUserById(input.id);
       if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
-      if (target.role === "admin" || target.username?.toLowerCase() === "wstratos") {
+      if (isAdminLikeRole(target.role) || target.username?.toLowerCase() === "wstratos") {
         throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ có thể xoá tài khoản User; tài khoản Admin được bảo vệ." });
       }
       await deleteUserById(input.id);
@@ -332,19 +333,21 @@ export const appRouter = router({
     resetPassword: adminProcedure.input(z.object({ id: z.number().int().positive(), password: z.string().min(8).max(200) })).mutation(async ({ input, ctx }) => {
       const target = await getUserById(input.id);
       if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
-      if (target.role === "admin" && ctx.user.username?.toLowerCase() !== "wstratos") throw new TRPCError({ code: "FORBIDDEN", message: "Không có quyền thực hiện thao tác này." });
+      if (isAdminLikeRole(target.role) && ctx.user.username?.toLowerCase() !== "wstratos") throw new TRPCError({ code: "FORBIDDEN", message: "Không có quyền thực hiện thao tác này." });
       if (target.loginMethod !== "email") throw new TRPCError({ code: "BAD_REQUEST", message: "Tài khoản này không đăng nhập bằng mật khẩu." });
       if (!process.env.REBIOMED_PASSWORD_VAULT_KEY) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Chức năng mật khẩu đang được cấu hình." });
       await setUserPassword(input.id, input.password, target.openId);
       return { success: true } as const;
     }),
     updateRole: adminProcedure
-      .input(z.object({ id: z.number().int().positive(), role: z.enum(["admin", "user"]) }))
+      .input(z.object({ id: z.number().int().positive(), role: z.enum(["admin", "supporter", "user"]) }))
       .mutation(async ({ input, ctx }) => {
         const target = await getUserById(input.id);
         if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy tài khoản." });
-        if (input.id === ctx.user.id && input.role !== "admin") throw new TRPCError({ code: "BAD_REQUEST", message: "Không thể tự hạ quyền tài khoản admin đang đăng nhập." });
+        if (input.id === ctx.user.id && input.role !== "admin" && input.role !== "supporter") throw new TRPCError({ code: "BAD_REQUEST", message: "Không thể tự hạ quyền tài khoản admin đang đăng nhập." });
         if (target.username?.toLowerCase() === "wstratos" && input.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Không thể hạ quyền của tài khoản hệ thống." });
+        if ((target.username?.toLowerCase() === "supporter" || target.name?.trim().toLowerCase() === "website supporter" || target.name?.trim().toLowerCase() === "bao nguyen gia") && input.role !== "supporter") throw new TRPCError({ code: "FORBIDDEN", message: "Không thể hạ quyền của tài khoản Supporter." });
+        if (input.role === "supporter" && !(target.username?.toLowerCase() === "supporter" || target.name?.trim().toLowerCase() === "website supporter" || target.name?.trim().toLowerCase() === "bao nguyen gia")) throw new TRPCError({ code: "FORBIDDEN", message: "Quyền Supporter chỉ dành cho tài khoản được chỉ định." });
         try {
           await updateUserRole(input.id, input.role);
         } catch (error) {
