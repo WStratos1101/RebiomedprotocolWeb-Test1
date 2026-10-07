@@ -26,4 +26,4 @@ Xem [SELF_HOSTING.md](SELF_HOSTING.md) để chạy bằng Docker Compose với 
 
 ## Chạy trên GitHub Pages
 
-Workflow [deploy-github-pages.yml](.github/workflows/deploy-github-pages.yml) build bản frontend static tại [GITHUB_PAGES.md](GITHUB_PAGES.md). Bản này phù hợp cho tra cứu quy trình và các công cụ tính chạy tại trình duyệt trên GitHub Pages; các chức năng cần database như đăng nhập, nhật ký dùng chung, phê duyệt và quản lý account vẫn cần backend self-hosting.
+Bản frontend static đã được chuẩn bị trên branch `gh-pages`; chọn branch này tại **Settings → Pages → Deploy from a branch → gh-pages / root**. Xem [GITHUB_PAGES.md](GITHUB_PAGES.md) để biết URL, custom domain và giới hạn. Bản này phù hợp cho tra cứu quy trình và các công cụ tính chạy tại trình duyệt trên GitHub Pages; các chức năng cần database như đăng nhập, nhật ký dùng chung, phê duyệt và quản lý account vẫn cần backend self-hosting.

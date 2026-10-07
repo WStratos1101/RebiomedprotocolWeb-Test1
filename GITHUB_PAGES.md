@@ -14,11 +14,11 @@ Tên owner/repository nằm trong workflow tại `.github/workflows/deploy-githu
 
 1. Mở repository `WStratos1101/RebiomedprotocolWeb-Test1` trên GitHub.
 2. Vào **Settings → Pages**.
-3. Chọn **Source: GitHub Actions**.
-4. Push vào `main` hoặc chạy workflow `Deploy Rebiomed Protocol to GitHub Pages` thủ công.
-5. Chờ job `build` và `deploy` hoàn tất.
+3. Chọn **Deploy from a branch**.
+4. Chọn branch `gh-pages` và thư mục `/ (root)`, sau đó bấm **Save**.
+5. Chờ GitHub Pages cấp URL.
 
-Workflow tự cài Node.js 22, pnpm 10.18, sinh snapshot dữ liệu, build static frontend và deploy artifact.
+Branch `gh-pages` hiện đã chứa artifact static đã build và có `.nojekyll`. Khi cập nhật nội dung, chạy `pnpm generate:github-pages`, build static rồi cập nhật branch này. Nếu GitHub App được cấp quyền `workflows`, file workflow local `.github/workflows/deploy-github-pages.yml` có thể được thêm vào repository để tự động hóa các bước này.
 
 ## Custom domain
 
