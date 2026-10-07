@@ -23,3 +23,7 @@ Website tra cứu và biên soạn quy trình, tài liệu mẫu và công cụ 
 ## Chạy độc lập trong máy chủ nội bộ
 
 Xem [SELF_HOSTING.md](SELF_HOSTING.md) để chạy bằng Docker Compose với MySQL nội bộ hoặc chạy trực tiếp bằng Node.js. Chế độ này dùng session và email login nội bộ; không cần Manus OAuth, Manus API hoặc Manus runtime.
+
+## Chạy trên GitHub Pages
+
+Workflow [deploy-github-pages.yml](.github/workflows/deploy-github-pages.yml) build bản frontend static tại [GITHUB_PAGES.md](GITHUB_PAGES.md). Bản này phù hợp cho tra cứu quy trình và các công cụ tính chạy tại trình duyệt trên GitHub Pages; các chức năng cần database như đăng nhập, nhật ký dùng chung, phê duyệt và quản lý account vẫn cần backend self-hosting.

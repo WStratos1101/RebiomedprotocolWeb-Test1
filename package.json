@@ -13,7 +13,9 @@
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "db:migrate": "drizzle-kit migrate",
     "dev:static": "vite --host 0.0.0.0 --port ${PORT:-3000} --strictPort",
-    "build:static": "vite build"
+    "build:static": "vite build",
+    "generate:github-pages": "tsx scripts/generate-github-pages-data.ts",
+    "build:github-pages": "VITE_GITHUB_PAGES=true vite build"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

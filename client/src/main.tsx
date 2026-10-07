@@ -5,6 +5,7 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
+import GitHubPagesApp from "./pages/GitHubPagesApp";
 import { startLogin } from "./const";
 import "./index.css";
 
@@ -72,10 +73,15 @@ const trpcClient = trpc.createClient({
   ],
 });
 
-createRoot(document.getElementById("root")!).render(
-  <trpc.Provider client={trpcClient} queryClient={queryClient}>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </trpc.Provider>
-);
+const root = createRoot(document.getElementById("root")!);
+if (import.meta.env.VITE_GITHUB_PAGES === "true") {
+  root.render(<GitHubPagesApp />);
+} else {
+  root.render(
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </trpc.Provider>
+  );
+}

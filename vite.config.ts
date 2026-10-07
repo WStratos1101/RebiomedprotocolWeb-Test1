@@ -172,6 +172,7 @@ const devOnlyPlugins = process.argv.includes("build") ? [] : [jsxLocPlugin(), vi
 const plugins = [vitePluginPublicPlatformConfig(), react(), tailwindcss(), ...devOnlyPlugins];
 
 export default defineConfig({
+  base: process.env.GITHUB_PAGES_BASE ?? "/",
   plugins,
   resolve: {
     alias: {
