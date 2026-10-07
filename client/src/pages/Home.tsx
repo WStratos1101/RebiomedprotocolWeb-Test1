@@ -42,6 +42,7 @@ import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "re
 import { SeedingCalculator } from "@/components/SeedingCalculator";
 import { NycodenzCalculator } from "@/components/NycodenzCalculator";
 import { BcaWorkingSolutionCalculator } from "@/components/BcaWorkingSolutionCalculator";
+import { QpcrCalculationView } from "@/components/QpcrCalculationView";
 
 const HypoxiaCalculator = lazy(() => import("@/components/HypoxiaCalculator").then(module => ({ default: module.HypoxiaCalculator })));
 const CustomCalculator = lazy(() => import("@/components/CustomCalculator").then(module => ({ default: module.CustomCalculator })));
@@ -54,7 +55,7 @@ type SpecialCategory = "Hypoxia" | "HighPressure";
 const SPECIAL_CATEGORY_LABEL: Record<SpecialCategory, string> = { Hypoxia: "Nuôi cấy Hypoxia", HighPressure: "Nuôi cấy áp suất cao" };
 type MasterMixTab = "cdna" | "qdna";
 
-type View = "overview" | "protocols" | "samples" | "calculator" | "special" | "chemicals" | "chemicalStock" | "chemicalIcc" | "masterMix" | "chemicalCdna" | "feedback" | "admin" | "adminAccounts" | "adminFeedback" | "auth" | "userAccount" | "createProtocol";
+type View = "overview" | "protocols" | "samples" | "calculator" | "qpcr" | "special" | "chemicals" | "chemicalStock" | "chemicalIcc" | "masterMix" | "chemicalCdna" | "feedback" | "admin" | "adminAccounts" | "adminFeedback" | "auth" | "userAccount" | "createProtocol";
 type Protocol = {
   id: string;
   title: string;
@@ -136,6 +137,7 @@ const navItems: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "protocols", label: "Quy trình", icon: ClipboardList },
   { id: "samples", label: "Mẫu & lý thuyết", icon: FlaskConical },
   { id: "calculator", label: "Công cụ tính", icon: Calculator },
+  { id: "qpcr", label: "Tính toán qPCR", icon: Calculator },
   { id: "chemicals", label: "Pha hoá chất", icon: FlaskConical },
   { id: "masterMix", label: "Master Mix", icon: FlaskConical },
   { id: "special", label: "Thí nghiệm điều kiện đặc trưng", icon: Beaker },
@@ -478,6 +480,7 @@ export default function Home() {
           {view === "protocols" && <ProtocolsView calculators={calculatorTools} onUseCalculator={id => { setSelectedCalc(id); setView("calculator"); }} onAttachCalculator={id => setSelectedCalc(id)} renderCalculator={renderInlineCalculator} protocols={filteredProtocols} selected={selectedProtocol} setSelected={setSelectedProtocol} openProtocol={openProtocol} onEdit={editProtocol} onDelete={handleDeleteProtocol} onCreate={() => startCreateProtocol()} canEdit={canEdit} canEditApproved={isAdmin} canDelete={isAdmin || selectedProtocol?.status === "Bản nháp"} search={search} />}
           {view === "samples" && <SamplesView samples={filteredSamples} selected={selectedSample} setSelected={setSelectedSample} openSample={openSample} onCreate={startCreateSample} onDelete={id => deleteSampleMutation.mutate({ id: Number(id) })} canManageApproved={isAdmin} search={search} />}
           {view === "calculator" && <CalculatorView tools={calculatorTools} onDesign={() => startCreateCalculator()} selectedCalc={selectedCalc} setSelectedCalc={setSelectedCalc} c1={c1} v1={v1} c2={c2} v2={v2} setC1={setC1} setV1={setV1} setC2={setC2} setV2={setV2} dilutionTarget={dilutionTarget} setDilutionTarget={setDilutionTarget} dilutionConcentrationMode={dilutionConcentrationMode} setDilutionConcentrationMode={setDilutionConcentrationMode} dilutionVolumeUnits={dilutionVolumeUnits} setDilutionVolumeUnits={setDilutionVolumeUnits} dilutionConcentrationUnits={dilutionConcentrationUnits} setDilutionConcentrationUnits={setDilutionConcentrationUnits} result={calculationResult} runCalculation={runCalculation} recent={recent} clearHistory={clearCalculationHistory} deleteCalculation={deleteCalculation} canCalculate={canEdit} volumeUnit={volumeUnit} setVolumeUnit={setVolumeUnit} cellUnit={cellUnit} setCellUnit={setCellUnit} dilutionMode={dilutionMode} setDilutionMode={setDilutionMode} dilutionFactorValue={dilutionFactorValue} setDilutionFactorValue={setDilutionFactorValue} dilutionInitialVolume={dilutionInitialVolume} setDilutionInitialVolume={setDilutionInitialVolume} dilutionAddedVolume={dilutionAddedVolume} setDilutionAddedVolume={setDilutionAddedVolume} manualSolutionVolume={manualSolutionVolume} manualCountedSquares={manualCountedSquares} setManualCountedSquares={setManualCountedSquares} setManualSolutionVolume={setManualSolutionVolume} />}
+          {view === "qpcr" && <QpcrCalculationView />}
           {view === "chemicals" && <Suspense fallback={lazyFallback}><ChemicalMixingView initialTab="chemicals" isAdmin={isAdmin} /></Suspense>}
           {view === "chemicalStock" && <Suspense fallback={lazyFallback}><ChemicalMixingView initialTab="stock" isAdmin={isAdmin} /></Suspense>}
           {view === "chemicalIcc" && <Suspense fallback={lazyFallback}><ChemicalMixingView initialTab="icc" isAdmin={isAdmin} /></Suspense>}
