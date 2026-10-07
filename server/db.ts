@@ -526,7 +526,7 @@ export async function deleteChemicalRecipeById(id: number) {
   if (result[0].affectedRows === 0) throw new Error("Không tìm thấy cách pha hoá chất.");
 }
 
-export async function createProtocolDraft(input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure"; steps?: { title: string; detail: string; time: string; calculatorIds?: string[] }[] }) {
+export async function createProtocolDraft(input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure" | "ProtocolCells" | "ProtocolPCR" | "ProtocolEvaluation" | "ProtocolStaining"; steps?: { title: string; detail: string; time: string; calculatorIds?: string[] }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
@@ -553,10 +553,10 @@ export async function updateCalculatorById(id: number, input: { name: string; fo
   await db.update(calculators).set({ name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] } }).where(eq(calculators.id, id));
 }
 
-export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; steps?: { title: string; detail: string; time: string; calculatorIds?: string[] }[] }) {
+export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure" | "ProtocolCells" | "ProtocolPCR" | "ProtocolEvaluation" | "ProtocolStaining"; steps?: { title: string; detail: string; time: string; calculatorIds?: string[] }[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(protocols).set({ title: input.title, summary: input.summary, owner: input.owner, ...(input.steps ? { steps: input.steps } : {}) }).where(eq(protocols.id, id));
+  await db.update(protocols).set({ title: input.title, summary: input.summary, owner: input.owner, ...(input.category ? { category: input.category } : {}), ...(input.steps ? { steps: input.steps } : {}) }).where(eq(protocols.id, id));
 }
 
 export async function updateSampleDraft(id: number, input: { name: string; description: string }) {
