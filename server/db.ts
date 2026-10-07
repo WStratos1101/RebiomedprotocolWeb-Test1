@@ -523,17 +523,18 @@ const seedRuns = [
 export async function ensureLabSeed() {
   const db = await getDb();
   if (!db) return;
-  const existing = await db.select({ id: protocols.id }).from(protocols).limit(1);
-  if (existing.length === 0) {
+  const [existingProtocol, existingSample, existingCalculator, existingRun] = await Promise.all([
+    db.select({ id: protocols.id }).from(protocols).limit(1),
+    db.select({ id: samples.id }).from(samples).limit(1),
+    db.select({ id: calculators.id }).from(calculators).limit(1),
+    db.select({ id: experimentRuns.id }).from(experimentRuns).limit(1),
+  ]);
+  // Seed only a genuinely empty database. Never recreate a protocol or tool that an Admin deleted.
+  if (existingProtocol.length === 0 && existingSample.length === 0 && existingCalculator.length === 0 && existingRun.length === 0) {
     await db.insert(protocols).values(seedProtocols);
     await db.insert(samples).values(seedSamples);
     await db.insert(calculators).values(seedCalculators);
     await db.insert(experimentRuns).values(seedRuns);
-  } else {
-    const existingProtocolRows = await db.select({ slug: protocols.slug }).from(protocols);
-    const existingProtocolSlugs = new Set(existingProtocolRows.map(item => item.slug));
-    const missingProtocols = seedProtocols.filter(item => !existingProtocolSlugs.has(item.slug));
-    if (missingProtocols.length > 0) await db.insert(protocols).values(missingProtocols);
   }
 }
 
