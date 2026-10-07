@@ -272,7 +272,7 @@ export async function deleteUserById(id: number) {
   return true;
 }
 
-const seedProtocols = [
+export const seedProtocols = [
   {
     slug: "pcr-qpcr",
     title: "Định lượng DNA bằng qPCR",
