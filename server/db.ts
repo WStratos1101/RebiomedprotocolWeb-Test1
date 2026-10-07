@@ -1046,7 +1046,17 @@ export async function updateCalculatorById(id: number, input: CalculatorContentI
   if (!db) throw new Error("Database is not available");
   const values = { name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] } };
   if (isAdminEditor(editorRole)) {
-    await db.update(calculators).set({ ...values, status: "Đã duyệt" }).where(eq(calculators.id, id));
+    try {
+      await ensurePendingEditColumns(db);
+    } catch (error) {
+      console.warn("[Content] Approval metadata unavailable; applying Admin calculator edit directly:", error);
+      await db.update(calculators).set({ ...values, status: "Đã duyệt" }).where(eq(calculators.id, id));
+      return;
+    }
+    await db.transaction(async tx => {
+      await tx.update(calculators).set({ ...values, status: "Đã duyệt" }).where(eq(calculators.id, id));
+      await tx.update(calculators).set({ pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(calculators.id, id));
+    });
   } else {
     await ensurePendingEditColumns(db);
     await db.update(calculators).set({ pendingEdit: values, pendingEditBy: editorId ?? null, pendingEditAt: new Date() }).where(eq(calculators.id, id));
@@ -1057,7 +1067,17 @@ export async function updateProtocolDraft(id: number, input: ProtocolContentInpu
   if (!db) throw new Error("Database is not available");
   const values = { title: input.title, summary: input.summary, owner: input.owner, ...(input.category ? { category: input.category } : {}), ...(input.steps ? { steps: input.steps } : {}) };
   if (isAdminEditor(editorRole)) {
-    await db.update(protocols).set({ ...values, status: "Đã duyệt", version: "v1.0" }).where(eq(protocols.id, id));
+    try {
+      await ensurePendingEditColumns(db);
+    } catch (error) {
+      console.warn("[Content] Approval metadata unavailable; applying Admin protocol edit directly:", error);
+      await db.update(protocols).set({ ...values, status: "Đã duyệt", version: "v1.0" }).where(eq(protocols.id, id));
+      return;
+    }
+    await db.transaction(async tx => {
+      await tx.update(protocols).set({ ...values, status: "Đã duyệt", version: "v1.0" }).where(eq(protocols.id, id));
+      await tx.update(protocols).set({ pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(protocols.id, id));
+    });
   } else {
     await ensurePendingEditColumns(db);
     await db.update(protocols).set({ pendingEdit: values, pendingEditBy: editorId ?? null, pendingEditAt: new Date() }).where(eq(protocols.id, id));
@@ -1103,12 +1123,14 @@ export async function approvePendingContentEdit(kind: "protocol" | "calculator",
     const row = (await db.select().from(protocols).where(eq(protocols.id, id)).limit(1))[0];
     const pending = row?.pendingEdit && typeof row.pendingEdit === "object" ? row.pendingEdit as Record<string, unknown> : null;
     if (!row || !pending) throw new Error("Không tìm thấy bản chỉnh sửa đang chờ duyệt.");
-    await db.update(protocols).set({ title: typeof pending.title === "string" ? pending.title : row.title, summary: typeof pending.summary === "string" ? pending.summary : row.summary, owner: typeof pending.owner === "string" ? pending.owner : row.owner, category: typeof pending.category === "string" ? pending.category : row.category, steps: Array.isArray(pending.steps) ? pending.steps : row.steps, status: "Đã duyệt", version: "v1.0", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(protocols.id, id));
+    const result = await db.update(protocols).set({ title: typeof pending.title === "string" ? pending.title : row.title, summary: typeof pending.summary === "string" ? pending.summary : row.summary, owner: typeof pending.owner === "string" ? pending.owner : row.owner, category: typeof pending.category === "string" ? pending.category : row.category, steps: Array.isArray(pending.steps) ? pending.steps : row.steps, status: "Đã duyệt", version: "v1.0", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(and(eq(protocols.id, id), isNotNull(protocols.pendingEdit)));
+    if (result[0].affectedRows === 0) throw new Error("Bản chỉnh sửa này đã được thay thế hoặc huỷ.");
   } else {
     const row = (await db.select().from(calculators).where(eq(calculators.id, id)).limit(1))[0];
     const pending = row?.pendingEdit && typeof row.pendingEdit === "object" ? row.pendingEdit as Record<string, unknown> : null;
     if (!row || !pending) throw new Error("Không tìm thấy bản chỉnh sửa đang chờ duyệt.");
-    await db.update(calculators).set({ name: typeof pending.name === "string" ? pending.name : row.name, category: typeof pending.category === "string" ? pending.category : row.category, formula: typeof pending.formula === "string" ? pending.formula : row.formula, description: typeof pending.description === "string" ? pending.description : row.description, config: pending.config && typeof pending.config === "object" ? pending.config : row.config, status: "Đã duyệt", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(calculators.id, id));
+    const result = await db.update(calculators).set({ name: typeof pending.name === "string" ? pending.name : row.name, category: typeof pending.category === "string" ? pending.category : row.category, formula: typeof pending.formula === "string" ? pending.formula : row.formula, description: typeof pending.description === "string" ? pending.description : row.description, config: pending.config && typeof pending.config === "object" ? pending.config : row.config, status: "Đã duyệt", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(and(eq(calculators.id, id), isNotNull(calculators.pendingEdit)));
+    if (result[0].affectedRows === 0) throw new Error("Bản chỉnh sửa này đã được thay thế hoặc huỷ.");
   }
 }
 export async function rejectPendingContentEdit(kind: "protocol" | "calculator", id: number) {
