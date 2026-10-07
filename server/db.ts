@@ -600,6 +600,87 @@ export const seedProtocols = [
     ],
     notes: ["Giữ master mix và primer trên đá trong thời gian setup.", "Luôn có NTC và đối chứng phù hợp.", "Lưu lại cấu hình plate, chương trình nhiệt và raw data sau khi chạy."],
   },
+  {
+    slug: "hema-oil-red-o-staining",
+    title: "Nhuộm Hema-Oil Red O",
+    category: "ProtocolStaining",
+    tag: "Staining / Oil Red O",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Nhuộm Oil Red O và hematoxylin để quan sát, chụp hình và đánh giá mẫu tế bào.",
+    duration: "Khoảng 30–45 phút",
+    steps: [
+      { title: "Rửa PBS", detail: "Loại môi trường rồi rửa PBS 3 lần.", time: "—" },
+      { title: "Cố định mẫu", detail: "Cố định bằng Para 1% trong 15 phút, sau đó chụp hình.", time: "15 phút" },
+      { title: "Rửa sau cố định", detail: "Rửa PBS 3 lần.", time: "—" },
+      { title: "Pha Oil Red O", detail: "Mix Oil Red O và nước cất/PBS theo tỉ lệ 3:2.", time: "—" },
+      { title: "Nhuộm Oil Red O", detail: "Hút 50 µL thuốc nhuộm vào mỗi giếng và ủ 10–15 phút.", time: "10–15 phút" },
+      { title: "Rửa thuốc nhuộm", detail: "Hút bỏ thuốc nhuộm và rửa với PBS 4 lần.", time: "—" },
+      { title: "Quan sát mẫu", detail: "Trữ mẫu trong PBS, xem kính hiển vi và chụp hình đánh giá kết quả.", time: "—" },
+      { title: "Đối màu hematoxylin", detail: "Loại PBS, thêm hematoxylin 20% và ủ 15–20 giây.", time: "15–20 giây" },
+      { title: "Rửa và quan sát lần cuối", detail: "Hút bỏ hematoxylin, rửa PBS rồi xem kính hiển vi.", time: "—" },
+    ],
+    notes: ["Ghi lại thời gian cố định, thời gian nhuộm và điều kiện chụp hình cho từng mẫu.", "Kiểm tra mẫu dưới kính hiển vi trước khi kết luận kết quả nhuộm."],
+  },
+  {
+    slug: "picro-sirius-red-cell-staining",
+    title: "Nhuộm Picro Sirius Red – tế bào",
+    category: "ProtocolStaining",
+    tag: "Staining / Picro Sirius Red",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Nhuộm Picro Sirius Red trên tế bào, quan sát bằng kính hiển vi và định lượng hấp thụ ở 510 nm.",
+    duration: "Khoảng 1–2 giờ",
+    steps: [
+      { title: "Rửa PBS", detail: "Loại môi trường rồi rửa PBS 3 lần.", time: "—" },
+      { title: "Cố định mẫu", detail: "Cố định bằng Para 1% trong 15 phút, sau đó chụp hình.", time: "15 phút" },
+      { title: "Rửa sau cố định", detail: "Rửa PBS 3 lần.", time: "—" },
+      { title: "Thêm solution A", detail: "Cho 50 µL solution A vào mỗi giếng và ủ 2 phút.", time: "2 phút" },
+      { title: "Rửa solution A", detail: "Rửa PBS 3 lần.", time: "—" },
+      { title: "Thêm solution B", detail: "Cho 50 µL solution B vào mỗi giếng và ủ 1 giờ.", time: "1 giờ" },
+      { title: "Thêm solution C", detail: "Cho 50 µL solution C vào mỗi giếng: lần 1 ủ 10 giây, lần 2 ủ 2 phút.", time: "10 giây + 2 phút" },
+      { title: "Rửa bằng ethanol", detail: "Rửa ethanol 70% 3 lần.", time: "—" },
+      { title: "Quan sát mẫu", detail: "Trữ mẫu với ethanol và xem kính hiển vi.", time: "—" },
+      { title: "Hòa tan Picro Sirius Red", detail: "Thêm 100 µL NaOH 0,1 M, ủ 1–2 phút để hòa tan hoàn toàn Picro Sirius Red.", time: "1–2 phút" },
+      { title: "Đo hấp thụ", detail: "Đo độ hấp thụ ở bước sóng 510 nm.", time: "510 nm" },
+      { title: "Tính kết quả", detail: "Thế số OD đo được vào đường chuẩn.", time: "—" },
+    ],
+    notes: ["Ghi rõ thời gian ủ của từng solution và số lần rửa.", "Đường chuẩn phải được chạy cùng điều kiện đo để quy đổi OD."],
+  },
+  {
+    slug: "icc-staining",
+    title: "Quy trình nhuộm ICC",
+    category: "ProtocolStaining",
+    tag: "Staining / ICC",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Nhuộm miễn dịch tế bào với permeabilization, blocking buffer, kháng thể sơ cấp, Alexa và DAPI.",
+    duration: "Qua đêm + khoảng 3 giờ",
+    steps: [
+      { title: "Rửa PBS", detail: "Sau khi loại môi trường, rửa mẫu bằng PBS.", time: "—" },
+      { title: "Cố định mẫu", detail: "Cố định Para 1% trong 15 phút, sau đó chụp hình.", time: "15 phút" },
+      { title: "Rửa sau cố định", detail: "Rửa PBS 3 lần rồi bỏ PBS.", time: "—" },
+      { title: "Permeabilization", detail: "Thêm permeabilization solution và ủ 10 phút. Với mô, cần điều chỉnh nồng độ và thời gian.", time: "10 phút" },
+      { title: "Rửa permeabilization", detail: "Rửa PBS 2 lần, mỗi lần 5 phút.", time: "2 × 5 phút" },
+      { title: "Blocking", detail: "Thay blocking buffer và ủ trong 30 phút.", time: "30 phút" },
+      { title: "Kháng thể sơ cấp", detail: "Thêm kháng thể sơ cấp, bọc mẫu và ủ ít nhất 12 giờ ở 4°C.", time: "≥12 giờ · 4°C" },
+      { title: "Thu hồi kháng thể", detail: "Hôm sau thu hồi kháng thể để đưa vào kháng thể reuse; ghi tên anti, tỉ lệ pha loãng và thông tin mẫu.", time: "—" },
+      { title: "Rửa kháng thể sơ cấp", detail: "Rửa lại với PBS, lặp lại 3 lần.", time: "—" },
+      { title: "Kháng thể liên hợp Alexa", detail: "Thêm Alexa, ủ 1 giờ ở nhiệt độ phòng và rửa PBS 2 lần.", time: "1 giờ · RT" },
+      { title: "Nhuộm DAPI", detail: "Nhỏ DAPI 1 µg/mL lên mẫu, ủ 5–10 phút rồi rửa 2–3 lần bằng PBS.", time: "5–10 phút" },
+      { title: "Rửa hoàn tất", detail: "Rửa lại PBS 2 lần.", time: "—" },
+      { title: "Bảo quản mẫu", detail: "Trữ mẫu trong PBS ở 4°C.", time: "4°C" },
+    ],
+    notes: [
+      "Para giúp cố định hoạt động của tế bào. Trong trường hợp nhiễm nấm hoặc nhiễm khuẩn, Para không đủ khả năng cố định tác nhân; nếu sau cố định vẫn thấy tác nhân lạ di chuyển trong đĩa/flask thì cần xem xét khả năng nhiễm.",
+      "Permea có vai trò làm đục màng tế bào để kháng thể đi vào; với mô cần điều chỉnh nồng độ và thời gian.",
+      "Blocking buffer giúp hạn chế tín hiệu nền và các yếu tố gây nhiễu không đặc hiệu khi đọc hình ảnh.",
+      "Kháng thể có serum/protein cần được aliquot để sử dụng; serum và protein có thể làm tăng sinh vi khuẩn.",
+    ],
+  },
 ];
 const seedSamples = [
   { code: "SMP-CELL-001", name: "HeLa cell lysate", groupName: "Cell lysate", status: "Đang dùng", description: "Lysate tế bào HeLa dùng cho các assay protein và kiểm soát nội bộ.", properties: [{ label: "Matrix", value: "RIPA buffer" }, { label: "Nồng độ mục tiêu", value: "1–3 mg/mL" }, { label: "Bảo quản", value: "−80°C" }, { label: "Freeze-thaw", value: "≤ 2 lần" }], theory: "RIPA là buffer ly giải mạnh, phù hợp thu hồi protein màng và protein nhân. SDS trong buffer có thể ảnh hưởng assay, vì vậy cần đối chứng matrix trước khi định lượng." },
@@ -630,7 +711,9 @@ const seedRuns = [
 
 let zymographyGelTableReady: Promise<void> | null = null;
 let additionalProtocolSeedReady: Promise<void> | null = null;
+let additionalStainingProtocolSeedReady: Promise<void> | null = null;
 let additionalCalculatorSeedReady: Promise<void> | null = null;
+let additionalChemicalSeedReady: Promise<void> | null = null;
 
 const additionalProtocolSlugs = new Set(["rna-extraction-trizol", "rna-dna-gel-electrophoresis", "cdna-reverse-transcription", "qpcr-sensifast-sybr-hirox"]);
 
@@ -651,6 +734,26 @@ async function ensureAdditionalProtocolSeeds(db: NonNullable<Awaited<ReturnType<
     });
   }
   await additionalProtocolSeedReady;
+}
+
+const additionalStainingProtocolSlugs = new Set(["hema-oil-red-o-staining", "picro-sirius-red-cell-staining", "icc-staining"]);
+async function ensureAdditionalStainingProtocolSeeds(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  if (!additionalStainingProtocolSeedReady) {
+    additionalStainingProtocolSeedReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`contentSeedMarkers\` (\`seedKey\` varchar(160) NOT NULL PRIMARY KEY, \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)`).then(async () => {
+      const result = await db.execute(sql`SELECT \`seedKey\` FROM \`contentSeedMarkers\` WHERE \`seedKey\` = 'protocols-staining-2026-10-07' LIMIT 1`);
+      const rows = (result[0] ?? []) as unknown as Array<{ seedKey?: string }>;
+      if (rows.length > 0) return;
+      for (const seed of seedProtocols.filter(item => additionalStainingProtocolSlugs.has(item.slug))) {
+        const existing = await db.select({ id: protocols.id }).from(protocols).where(eq(protocols.slug, seed.slug)).limit(1);
+        if (existing.length === 0) await db.insert(protocols).values(seed);
+      }
+      await db.execute(sql`INSERT INTO \`contentSeedMarkers\` (\`seedKey\`) VALUES ('protocols-staining-2026-10-07')`);
+    }).catch(error => {
+      additionalStainingProtocolSeedReady = null;
+      throw error;
+    });
+  }
+  await additionalStainingProtocolSeedReady;
 }
 
 const additionalCalculatorSlugs = new Set(["volume-to-add", "nycodenz"]);
@@ -731,6 +834,7 @@ export async function getLabContent() {
   if (!db) return { protocols: [], samples: [], calculators: [], runs: [] };
   await ensureLabSeed();
   await ensureAdditionalProtocolSeeds(db);
+  await ensureAdditionalStainingProtocolSeeds(db);
   await ensureAdditionalCalculatorSeeds(db);
   await ensureZymographyGelTable(db);
   const [protocolRows, sampleRows, calculatorRows, runRows] = await Promise.all([
@@ -773,6 +877,40 @@ async function ensureChemicalSeed() {
   })));
 }
 
+const additionalChemicalRecipeIds = new Set(["oil-red-o-working", "icc-alexa-488", "icc-dapi", "icc-permeabilization", "icc-blocking-buffer"]);
+async function ensureAdditionalChemicalSeeds() {
+  const db = await getDb();
+  if (!db) return;
+  if (!additionalChemicalSeedReady) {
+    additionalChemicalSeedReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`contentSeedMarkers\` (\`seedKey\` varchar(160) NOT NULL PRIMARY KEY, \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)`).then(async () => {
+      const result = await db.execute(sql`SELECT \`seedKey\` FROM \`contentSeedMarkers\` WHERE \`seedKey\` = 'chemicals-staining-2026-10-07' LIMIT 1`);
+      const rows = (result[0] ?? []) as unknown as Array<{ seedKey?: string }>;
+      if (rows.length > 0) return;
+      for (const recipe of seedChemicalRecipes.filter(item => additionalChemicalRecipeIds.has(item.id))) {
+        const existing = await db.select({ id: chemicalRecipes.id }).from(chemicalRecipes).where(eq(chemicalRecipes.slug, recipe.id)).limit(1);
+        if (existing.length === 0) await db.insert(chemicalRecipes).values({
+          slug: recipe.id,
+          name: recipe.name,
+          groupName: recipe.group,
+          baseVolume: String(recipe.baseVolume),
+          baseUnit: recipe.baseUnit,
+          stock: recipe.stock,
+          note: recipe.note ?? null,
+          ingredients: recipe.ingredients,
+          method: recipe.steps.join("\n"),
+          status: "Đã duyệt",
+          active: 1,
+        });
+      }
+      await db.execute(sql`INSERT INTO \`contentSeedMarkers\` (\`seedKey\`) VALUES ('chemicals-staining-2026-10-07')`);
+    }).catch(error => {
+      additionalChemicalSeedReady = null;
+      throw error;
+    });
+  }
+  await additionalChemicalSeedReady;
+}
+
 function slugifyChemicalName(name: string) {
   return `${name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
 }
@@ -797,6 +935,7 @@ export async function listChemicalRecipes() {
   const db = await getDb();
   if (!db) return seedChemicalRecipes.map(recipe => ({ ...recipe, dbId: undefined }));
   await ensureChemicalSeed();
+  await ensureAdditionalChemicalSeeds();
   const rows = await db.select().from(chemicalRecipes).where(eq(chemicalRecipes.active, 1)).orderBy(asc(chemicalRecipes.id));
   return rows.map(toChemicalRecipe);
 }
