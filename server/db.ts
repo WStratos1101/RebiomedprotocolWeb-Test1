@@ -523,14 +523,16 @@ const seedRuns = [
 export async function ensureLabSeed() {
   const db = await getDb();
   if (!db) return;
-  const [existingProtocol, existingSample, existingCalculator, existingRun] = await Promise.all([
+  const [existingUser, existingProtocol, existingSample, existingCalculator, existingRun] = await Promise.all([
+    db.select({ id: users.id }).from(users).limit(1),
     db.select({ id: protocols.id }).from(protocols).limit(1),
     db.select({ id: samples.id }).from(samples).limit(1),
     db.select({ id: calculators.id }).from(calculators).limit(1),
     db.select({ id: experimentRuns.id }).from(experimentRuns).limit(1),
   ]);
-  // Seed only a genuinely empty database. Never recreate a protocol or tool that an Admin deleted.
-  if (existingProtocol.length === 0 && existingSample.length === 0 && existingCalculator.length === 0 && existingRun.length === 0) {
+  // Seed only a brand-new installation. Once an account exists, deleting content must never
+  // be interpreted as an empty database and must never recreate or overwrite user data.
+  if (existingUser.length === 0 && existingProtocol.length === 0 && existingSample.length === 0 && existingCalculator.length === 0 && existingRun.length === 0) {
     await db.insert(protocols).values(seedProtocols);
     await db.insert(samples).values(seedSamples);
     await db.insert(calculators).values(seedCalculators);
