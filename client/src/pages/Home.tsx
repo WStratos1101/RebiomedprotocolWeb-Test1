@@ -278,6 +278,7 @@ export default function Home() {
   const [masterMixTab, setMasterMixTab] = useState<MasterMixTab>("cdna");
   const [draftCategory, setDraftCategory] = useState<ContentCategory>("Custom");
   const [mobileNav, setMobileNav] = useState(false);
+  const [expandedNavSections, setExpandedNavSections] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
   const [protocols, setProtocols] = useState(initialProtocols);
   const [samples, setSamples] = useState(initialSamples);
@@ -448,7 +449,21 @@ export default function Home() {
         </div>
         <div className="nav-caption">Workspace</div>
         <nav className="main-nav">
-          {navItems.filter(item => (item.id !== "adminAccounts" && item.id !== "adminFeedback") || isAdmin).map(item => { const Icon = item.icon; return <div key={item.id}><button className={`nav-item ${view === item.id || (item.id === "chemicals" && (view === "chemicalStock" || view === "chemicalIcc" || view === "chemicalCdna")) ? "active" : ""}`} onClick={() => { setView(item.id); setSelectedProtocol(null); setSelectedSample(null); setMobileNav(false); }}><Icon size={17} /><span>{item.label}</span></button>{item.id === "special" && <div className="special-subnav">{(["Hypoxia", "HighPressure"] as const).map(key => <button key={key} className={view === "special" && specialCategory === key ? "active" : ""} onClick={() => { setSpecialCategory(key); setView("special"); setMobileNav(false); }}>{SPECIAL_CATEGORY_LABEL[key]}</button>)}</div>}{item.id === "chemicals" && <div className="special-subnav chemical-subnav"><button className={view === "chemicals" ? "active" : ""} onClick={() => { setView("chemicals"); setMobileNav(false); }}>Hoá chất</button><button className={view === "chemicalStock" ? "active" : ""} onClick={() => { setView("chemicalStock"); setMobileNav(false); }}>Hoá chất stock</button><button className={view === "chemicalIcc" ? "active" : ""} onClick={() => { setView("chemicalIcc"); setMobileNav(false); }}>Nhuộm ICC</button></div>}{item.id === "masterMix" && <div className="special-subnav chemical-subnav"><button className={view === "masterMix" && masterMixTab === "cdna" ? "active" : ""} onClick={() => { setMasterMixTab("cdna"); setView("masterMix"); setMobileNav(false); }}>Master Mix cDNA</button><button className={view === "masterMix" && masterMixTab === "qdna" ? "active" : ""} onClick={() => { setMasterMixTab("qdna"); setView("masterMix"); setMobileNav(false); }}>Master Mix qDNA</button></div>}</div>; })}
+          {navItems.filter(item => (item.id !== "adminAccounts" && item.id !== "adminFeedback") || isAdmin).map(item => {
+            const Icon = item.icon;
+            const hasSubnav = item.id === "special" || item.id === "chemicals" || item.id === "masterMix";
+            const isExpanded = Boolean(expandedNavSections[item.id]);
+            const isActive = view === item.id || (item.id === "chemicals" && (view === "chemicalStock" || view === "chemicalIcc" || view === "chemicalCdna"));
+            return <div key={item.id} className="nav-section">
+              <div className="nav-item-row">
+                <button className={`nav-item ${isActive ? "active" : ""}`} onClick={() => { setView(item.id); setSelectedProtocol(null); setSelectedSample(null); setMobileNav(false); }}><Icon size={17} /><span>{item.label}</span></button>
+                {hasSubnav && <button type="button" className="nav-collapse-toggle" onClick={() => setExpandedNavSections(current => ({ ...current, [item.id]: !current[item.id] }))} aria-label={`${isExpanded ? "Thu gọn" : "Mở rộng"} mục ${item.label}`} aria-expanded={isExpanded}><ChevronDown className={isExpanded ? "is-expanded" : ""} size={14} /></button>}
+              </div>
+              {item.id === "special" && isExpanded && <div className="special-subnav">{(["Hypoxia", "HighPressure"] as const).map(key => <button key={key} className={view === "special" && specialCategory === key ? "active" : ""} onClick={() => { setSpecialCategory(key); setView("special"); setMobileNav(false); }}>{SPECIAL_CATEGORY_LABEL[key]}</button>)}</div>}
+              {item.id === "chemicals" && isExpanded && <div className="special-subnav chemical-subnav"><button className={view === "chemicals" ? "active" : ""} onClick={() => { setView("chemicals"); setMobileNav(false); }}>Hoá chất</button><button className={view === "chemicalStock" ? "active" : ""} onClick={() => { setView("chemicalStock"); setMobileNav(false); }}>Hoá chất stock</button><button className={view === "chemicalIcc" ? "active" : ""} onClick={() => { setView("chemicalIcc"); setMobileNav(false); }}>Nhuộm ICC</button></div>}
+              {item.id === "masterMix" && isExpanded && <div className="special-subnav chemical-subnav"><button className={view === "masterMix" && masterMixTab === "cdna" ? "active" : ""} onClick={() => { setMasterMixTab("cdna"); setView("masterMix"); setMobileNav(false); }}>Master Mix cDNA</button><button className={view === "masterMix" && masterMixTab === "qdna" ? "active" : ""} onClick={() => { setMasterMixTab("qdna"); setView("masterMix"); setMobileNav(false); }}>Master Mix qDNA</button></div>}
+            </div>;
+          })}
         </nav>
         <div className="sidebar-rule" />
         <div className="sidebar-bottom"><div className="sync-note"><span className="sync-icon"><Check size={12} /></span><span><strong>Đã đồng bộ</strong><small>{contentQuery.isFetching ? "Đang cập nhật…" : "Chỉnh sửa trực tiếp"}</small><small className="sync-presenter">Presented by W.Stratos with Luv :3</small></span></div></div>
