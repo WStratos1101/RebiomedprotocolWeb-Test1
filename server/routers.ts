@@ -207,6 +207,14 @@ export const appRouter = router({
         await deleteProtocolById(input.id);
         return { success: true } as const;
       }),
+    adminDeleteProtocol: adminProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        const current = await getProtocolById(input.id);
+        if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy quy trình hoặc quy trình đã bị xoá." });
+        await deleteProtocolById(input.id);
+        return { success: true as const };
+      }),
     deleteSample: publicProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
       const current = await getSampleById(input.id);
       if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy mục lý thuyết." });
