@@ -15,7 +15,7 @@ import type { ReactNode } from "react";
  type StaticView = "overview" | "protocols" | "calculator" | "chemicals" | "masterMix";
 
 const fallbackData: StaticData = { protocols: [], calculators: [], chemicals: seedChemicalRecipes };
-const protocolLabels: Record<string, string> = { ProtocolCells: "Quy trình cho Tế bào", ProtocolPCR: "Quy trình cho PCR", ProtocolEvaluation: "Quy trình cho Đánh giá", ProtocolStaining: "Quy trình nhuộm", Molecular: "Quy trình cho PCR", Biochemistry: "Quy trình cho Đánh giá", "Cell isolation": "Quy trình cho Tế bào" };
+const protocolLabels: Record<string, string> = { ProtocolCells: "Quy trình cho Tế bào", ProtocolPCR: "Quy trình cho PCR", ProtocolEvaluation: "Quy trình đánh giá", ProtocolStaining: "Quy trình nhuộm", Molecular: "Quy trình cho PCR", Biochemistry: "Quy trình đánh giá", "Cell isolation": "Quy trình cho Tế bào" };
 const format = (value: number) => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 6 }).format(value);
 const dataUrl = () => new URL("github-pages-data.json", import.meta.env.BASE_URL).toString();
 

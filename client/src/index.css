@@ -172,3 +172,5 @@
 
 /* Collapsible sidebar sections */
 .nav-section{display:grid;gap:0}.nav-item-row{display:flex;align-items:stretch;gap:3px}.nav-item-row .nav-item{flex:1;min-width:0}.nav-collapse-toggle{display:inline-grid;place-items:center;flex:0 0 30px;border:0;border-radius:7px;background:transparent;color:#8c9790;transition:background .16s ease,color .16s ease}.nav-collapse-toggle:hover,.nav-collapse-toggle:focus-visible{background:rgba(255,255,255,.55);color:var(--teal)}.nav-collapse-toggle svg{transition:transform .16s ease}.nav-collapse-toggle svg.is-expanded{transform:rotate(180deg)}.nav-section .special-subnav{animation:fadeUp .16s ease both}
+
+.protocol-category-heading h2,.protocol-category-heading strong{color:var(--blue)}

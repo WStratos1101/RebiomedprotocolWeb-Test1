@@ -545,6 +545,109 @@ export const seedProtocols = [
     notes: ["Giữ lạnh trong quá trình điện di.", "Không dùng reducing buffer nếu cần bảo toàn hoạt tính enzyme.", "Thời gian incubation có thể kéo dài 18–24 giờ tùy tín hiệu cần phát hiện.", { type: "table", title: "Bảng pha gel Zymography", columns: ["Thành phần", "Separating gel (7.5%)", "Stacking gel (5%)"], rows: [["Water", "0.85 mL", "1.172 mL"], ["30% Acrylamide", "1.25 mL", "0.268 mL"], ["1.5M Tris-HCl (pH 8.8)", "1.3 mL", "0 mL"], ["0.5M Tris HCl (pH 6.8)", "0 mL", "0.52 mL"], ["Gelatin 10 mg/mL", "1.6 mL", "0 mL"], ["10% SDS", "50 µL", "20 µL"], ["10% APS", "50 µL", "20 µL"], ["TEMED", "5 µL", "2 µL"], ["Total volume", "5 mL", "2 mL"], ["Volume added to the cast", "4–4.5 mL", "1–1.5 mL"]] }],
   },
   {
+    slug: "cck8-assay",
+    title: "Đo CCK8",
+    category: "ProtocolEvaluation",
+    tag: "Evaluation / CCK8",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Đo tín hiệu CCK8 để so sánh viability hoặc đối chiếu với đường chuẩn số lượng tế bào.",
+    duration: "1–4 giờ",
+    steps: [
+      { title: "Bảo vệ khỏi ánh sáng", detail: "Toàn bộ quy trình làm nên tránh sáng.", time: "Trong suốt quy trình" },
+      { title: "Pha working solution", detail: "Pha working solution theo tỷ lệ 1:9 (CCK8: môi trường nuôi cấy).", time: "—" },
+      { title: "Thay môi trường", detail: "Rút bỏ môi trường cũ và thêm working solution vào các giếng cần đo.", time: "—" },
+      { title: "Chuẩn bị blank", detail: "Thêm working solution vào 3 giếng trống làm blank.", time: "3 giếng" },
+      { title: "Ủ phản ứng", detail: "Ủ trong tủ nuôi 1–4 giờ. Tế bào tăng sinh mạnh như 3T3, CFSC, HepG2 thường ủ 1 giờ; tế bào tăng sinh yếu như tế bào sơ cấp có thể ủ 4 giờ.", time: "1–4 giờ" },
+      { title: "Đo hấp thụ", detail: "Đo bước sóng ở 450 nm.", time: "450 nm" },
+      { title: "Hiệu chỉnh và đối chiếu", detail: "Lấy giá trị mẫu trừ blank để làm data đối chiếu với Control hoặc lập đường chuẩn CCK8 cho từng dòng tế bào để tính số lượng tế bào.", time: "—" },
+    ],
+    notes: ["Làm việc tránh sáng để hạn chế ảnh hưởng đến tín hiệu CCK8.", "Thời gian ủ cần được tối ưu theo tốc độ tăng sinh của từng dòng tế bào."],
+  },
+  {
+    slug: "cck8-standard-curve",
+    title: "Lập đường chuẩn cho CCK8",
+    category: "ProtocolEvaluation",
+    tag: "Evaluation / CCK8 standard curve",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Tạo dãy pha loãng tế bào trên plate 96 giếng và lập đường chuẩn CCK8 bằng GraphPad Prism.",
+    duration: "8–12 giờ + thời gian phân tích",
+    steps: [
+      { title: "Chuẩn bị pipette đa kênh", detail: "Từ bước 2 nên dùng pipette đa kênh để thao tác đồng đều giữa các giếng.", time: "—" },
+      { title: "Nạp môi trường", detail: "Add trước 100 μL môi trường nuôi cấy vào 5 × 3 giếng 96.", time: "—" },
+      { title: "Nạp mật độ cao nhất", detail: "Add 100 μL chứa 20.000 tế bào vào mỗi giếng của cột giếng đầu tiên.", time: "—" },
+      { title: "Pha loãng tuần tự", detail: "Huyền phù đều, không tạo bọt trong giếng và chuyển 100 μL sang giếng tiếp theo. Lặp lại đến giếng cuối cùng.", time: "—" },
+      { title: "Đo CCK8", detail: "Sau 8–12 giờ, khi tế bào hoàn toàn bám, bắt đầu thực hiện phép đo CCK8.", time: "8–12 giờ" },
+      { title: "Mở phân tích GraphPad", detail: "Dùng GraphPad Prism để lập đường chuẩn. Dùng bảng data XY và chọn Y là 3 lần lặp lại như thiết kế thí nghiệm.", time: "—" },
+      { title: "Nhập dữ liệu chuẩn", detail: "Nhập cột X là số lượng tế bào đã seed: 10000, 5000, 2500, 1250, 625, 0.", time: "—" },
+      { title: "Chạy hồi quy tuyến tính", detail: "Chọn Analyze → Regression and Curve → Simple Linear Regression.", time: "—" },
+      { title: "Đọc phương trình", detail: "Trong Results có R² (R square) và phương trình đường chuẩn (Equation).", time: "—" },
+      { title: "Tính số lượng tế bào", detail: "Thế số OD của mẫu vào Y và tính số lượng tế bào X theo phương trình đường chuẩn.", time: "—" },
+    ],
+    notes: ["Giữ cùng thể tích và thời gian ủ giữa các điểm chuẩn.", "Đối chiếu R² trước khi dùng phương trình để suy ra số lượng tế bào."],
+  },
+  {
+    slug: "alt-ast-assay",
+    title: "ALT/AST",
+    category: "ProtocolEvaluation",
+    tag: "Evaluation / ALT AST",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Đo động học ALT/AST bằng working solution, blank và các mốc OD ở 340 nm.",
+    duration: "Khoảng 15 phút",
+    steps: [
+      { title: "Xác định điều kiện đo", detail: "Mỗi nhiệt độ heat working solution sẽ tương ứng với bước sóng đo OD và số liệu tính toán.", time: "Theo kit" },
+      { title: "Pha working solution", detail: "Pha working solution theo tỷ lệ R1:R2 = 4:1, tương đương 160:40 μL cho mỗi giếng.", time: "—" },
+      { title: "Heat working solution", detail: "Heat working solution lên 30°C, đo ở khoảng 340 nm (khoảng 1151 theo thiết bị nếu áp dụng).", time: "30°C · 340 nm" },
+      { title: "Chuẩn bị blank", detail: "Chuẩn bị 3 giếng blank. Mỗi giếng gồm 200 μL working solution + 20 μL NaCl 0,9%.", time: "3 giếng" },
+      { title: "Nạp mẫu", detail: "Mỗi mẫu lặp lại 3 lần. Mỗi giếng gồm 200 μL working solution + 20 μL mẫu. Huyền phù kỹ, thao tác nhanh và không tạo bọt khí.", time: "3 lần lặp" },
+      { title: "Đo OD động học", detail: "Đo OD 340 nm: T0 nạp mẫu; T1 sau 60 giây đo lần 1; T2 sau 60 giây đo lần 2; T3 sau 60 giây đo lần 3.", time: "340 nm" },
+      { title: "Tính toán", detail: "Tính toán kết quả theo nhiệt độ heat, bước sóng và hệ số của bộ kit tương ứng.", time: "—" },
+    ],
+    notes: ["Nhiệt độ heat working solution phải khớp với bước sóng và dữ liệu tính toán của assay."],
+  },
+  {
+    slug: "albumin-assay",
+    title: "Albumin",
+    category: "ProtocolEvaluation",
+    tag: "Evaluation / Albumin",
+    status: "Bản nháp" as const,
+    version: "v0.1",
+    owner: "W.Stratos",
+    summary: "Trang quy trình Albumin đang chờ bổ sung hướng dẫn thao tác và điều kiện đo chi tiết.",
+    duration: "Chưa cập nhật",
+    steps: [{ title: "Bổ sung hướng dẫn Albumin", detail: "Chưa có nội dung thao tác chi tiết trong yêu cầu hiện tại. Admin có thể chỉnh sửa bản nháp trước khi duyệt.", time: "—" }],
+    notes: ["Bản nháp — cần bổ sung bộ kit, thể tích, bước sóng và công thức tính trước khi sử dụng chính thức."],
+  },
+  {
+    slug: "secreted-collagen-assay",
+    title: "Đo lượng collagen do tế bào tiết ra",
+    category: "ProtocolEvaluation",
+    tag: "Evaluation / Collagen",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Thu hồi môi trường nuôi cấy và định lượng collagen bằng Sol A, Picro và phép đo OD 510 nm.",
+    duration: "Khoảng 1–2 giờ",
+    steps: [
+      { title: "Nuôi tế bào", detail: "Trong đĩa 6 nuôi cấy tế bào, thêm 1–1,5 mL môi trường nuôi cấy.", time: "Theo thiết kế" },
+      { title: "Thu hồi môi trường", detail: "Sau thời gian nuôi cấy, thu hồi môi trường vào epp phù hợp.", time: "—" },
+      { title: "Tạo phức nhuộm", detail: "Thêm 100 μL môi trường vào epp và 100 μL Sol A (Abcam).", time: "—" },
+      { title: "Ủ phản ứng", detail: "Ủ hỗn hợp.", time: "10–30 phút" },
+      { title: "Ly tâm", detail: "Ly tâm ở 13.000 rpm trong 15 phút.", time: "15 phút" },
+      { title: "Rửa pellet lần 1", detail: "Rút bỏ phần dịch nổi màu vàng, rửa pellet bằng 100 μL acetic acid hoặc HCl 0,1 M.", time: "—" },
+      { title: "Rửa pellet lần 2", detail: "Rút bỏ dịch nổi và lặp lại bước rửa.", time: "—" },
+      { title: "Hòa tan màu nhuộm", detail: "Thêm NaOH 0,1 M để hòa tan hoàn toàn màu nhuộm Picro. Huyền phù nhẹ nhàng, tránh tạo bọt.", time: "—" },
+      { title: "Đo OD", detail: "Thêm 100 μL dung dịch vào plate 96 và đo ở bước sóng 510 nm.", time: "510 nm" },
+      { title: "Tính collagen", detail: "Thay số OD vào đường chuẩn để tính tổng khối lượng collagen.", time: "—" },
+    ],
+    notes: ["Tránh tạo bọt khi huyền phù pellet.", "Ghi rõ đường chuẩn và đơn vị khối lượng collagen khi báo cáo kết quả."],
+  },
+  {
     slug: "rna-extraction-trizol",
     title: "Quy trình tách RNA bằng Trizol",
     category: "ProtocolPCR",
@@ -735,6 +838,7 @@ const seedRuns = [
 let zymographyGelTableReady: Promise<void> | null = null;
 let additionalProtocolSeedReady: Promise<void> | null = null;
 let additionalStainingProtocolSeedReady: Promise<void> | null = null;
+let evaluationProtocolSeedReady: Promise<void> | null = null;
 let additionalCalculatorSeedReady: Promise<void> | null = null;
 let additionalChemicalSeedReady: Promise<void> | null = null;
 
@@ -777,6 +881,26 @@ async function ensureAdditionalStainingProtocolSeeds(db: NonNullable<Awaited<Ret
     });
   }
   await additionalStainingProtocolSeedReady;
+}
+
+const evaluationProtocolSlugs = new Set(["cck8-assay", "cck8-standard-curve", "alt-ast-assay", "albumin-assay", "secreted-collagen-assay"]);
+async function ensureEvaluationProtocolSeeds(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  if (!evaluationProtocolSeedReady) {
+    evaluationProtocolSeedReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`contentSeedMarkers\` (\`seedKey\` varchar(160) NOT NULL PRIMARY KEY, \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)`).then(async () => {
+      const result = await db.execute(sql`SELECT \`seedKey\` FROM \`contentSeedMarkers\` WHERE \`seedKey\` = 'protocols-evaluation-assays-2026-10-07' LIMIT 1`);
+      const rows = (result[0] ?? []) as unknown as Array<{ seedKey?: string }>;
+      if (rows.length > 0) return;
+      for (const seed of seedProtocols.filter(item => evaluationProtocolSlugs.has(item.slug))) {
+        const existing = await db.select({ id: protocols.id }).from(protocols).where(eq(protocols.slug, seed.slug)).limit(1);
+        if (existing.length === 0) await db.insert(protocols).values(seed);
+      }
+      await db.execute(sql`INSERT INTO \`contentSeedMarkers\` (\`seedKey\`) VALUES ('protocols-evaluation-assays-2026-10-07')`);
+    }).catch(error => {
+      evaluationProtocolSeedReady = null;
+      throw error;
+    });
+  }
+  await evaluationProtocolSeedReady;
 }
 
 const additionalCalculatorSlugs = new Set(["volume-to-add", "nycodenz"]);
@@ -879,6 +1003,7 @@ export async function getLabContent() {
   await ensureLabSeed();
   await ensureAdditionalProtocolSeeds(db);
   await ensureAdditionalStainingProtocolSeeds(db);
+  await ensureEvaluationProtocolSeeds(db);
   await ensureAdditionalCalculatorSeeds(db);
   await ensureBcaCalculatorSeed(db);
   await ensureZymographyGelTable(db);
