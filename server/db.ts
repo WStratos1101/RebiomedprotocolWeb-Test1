@@ -720,6 +720,7 @@ const seedCalculators = [
   { slug: "volume-to-add", name: "Tính lượng thể tích cần thêm", category: "Hóa chất", formula: "V mục tiêu − V có sẵn − V đã thêm", description: "Tính lượng dung tích còn cần bổ sung để đạt tổng dung tích mục tiêu.", config: { inputs: ["availableVolume", "addedVolume", "targetVolume"], units: { availableVolume: "mL", addedVolume: "mL", targetVolume: "mL" } } },
   { slug: "seeding", name: "Seeding", category: "Cells", formula: "Tổng môi trường = số đơn vị × thể tích mỗi đơn vị", description: "Tính tổng môi trường, thể tích suspension chứa tế bào cần lấy và môi trường cần bổ sung khi seed.", config: { kind: "seeding", defaultCountedSquares: 4, defaultSolutionVolume: 1, defaultDilutionFactor: 1.5, vessels: { "giếng 96": 100, "giếng 48": 250, "giếng 6": 1200, "flask T25": 2500 } } },
   { slug: "nycodenz", name: "Tính pha Nycodenz", category: "Hóa chất", formula: "V Nycodenz = V lớp × % sử dụng / % stock", description: "Tool ẩn chỉ được liên kết và sử dụng trong bước quy trình; không hiện trong bảng Công cụ tính tổng hợp.", config: { kind: "nycodenz", protocolOnly: true, volumeUnit: "mL", layerModes: ["1 phân lớp", "2 phân lớp"] } },
+  { slug: "bca-working-solution", name: "Pha Working Solution BCA", category: "Hóa chất", formula: "A = V giếng × (giếng sử dụng + blank); B = A / 50", description: "Tool ẩn tính dung tích Reagent A và Reagent B cho assay BCA.", config: { kind: "bca-working-solution", protocolOnly: true, volumeUnit: "µL", defaultVolumePerWell: 200 } },
   { slug: "hypoxia-headspace", name: "Ước tính O₂ pha khí hệ kín", category: "Hypoxia", formula: "n(O₂) = P tuyệt đối × V khí × %O₂ / (R × T)", description: "Ước tính lượng O₂ pha khí và thời gian đến ngưỡng giả định; không thay cho đo oxy tại tế bào.", config: { model: "ideal-gas-headspace", reference: "https://www.mdpi.com/2073-4409/9/11/2456" } },
 ];
 
@@ -779,6 +780,7 @@ async function ensureAdditionalStainingProtocolSeeds(db: NonNullable<Awaited<Ret
 }
 
 const additionalCalculatorSlugs = new Set(["volume-to-add", "nycodenz"]);
+let bcaCalculatorSeedReady: Promise<void> | null = null;
 async function ensureAdditionalCalculatorSeeds(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
   if (!additionalCalculatorSeedReady) {
     additionalCalculatorSeedReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`contentSeedMarkers\` (\`seedKey\` varchar(160) NOT NULL PRIMARY KEY, \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)`).then(async () => {
@@ -796,6 +798,26 @@ async function ensureAdditionalCalculatorSeeds(db: NonNullable<Awaited<ReturnTyp
     });
   }
   await additionalCalculatorSeedReady;
+}
+
+async function ensureBcaCalculatorSeed(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  if (!bcaCalculatorSeedReady) {
+    bcaCalculatorSeedReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`contentSeedMarkers\` (\`seedKey\` varchar(160) NOT NULL PRIMARY KEY, \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)`).then(async () => {
+      const result = await db.execute(sql`SELECT \`seedKey\` FROM \`contentSeedMarkers\` WHERE \`seedKey\` = 'calculator-bca-working-solution-2026-10-07' LIMIT 1`);
+      const rows = (result[0] ?? []) as unknown as Array<{ seedKey?: string }>;
+      if (rows.length > 0) return;
+      const seed = seedCalculators.find(item => item.slug === "bca-working-solution");
+      if (seed) {
+        const existing = await db.select({ id: calculators.id }).from(calculators).where(eq(calculators.slug, seed.slug)).limit(1);
+        if (existing.length === 0) await db.insert(calculators).values(seed);
+      }
+      await db.execute(sql`INSERT INTO \`contentSeedMarkers\` (\`seedKey\`) VALUES ('calculator-bca-working-solution-2026-10-07')`);
+    }).catch(error => {
+      bcaCalculatorSeedReady = null;
+      throw error;
+    });
+  }
+  await bcaCalculatorSeedReady;
 }
 
 async function ensureZymographyGelTable(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
@@ -858,6 +880,7 @@ export async function getLabContent() {
   await ensureAdditionalProtocolSeeds(db);
   await ensureAdditionalStainingProtocolSeeds(db);
   await ensureAdditionalCalculatorSeeds(db);
+  await ensureBcaCalculatorSeed(db);
   await ensureZymographyGelTable(db);
   const [protocolRows, sampleRows, calculatorRows, runRows] = await Promise.all([
     db.select({ id: protocols.id, slug: protocols.slug, title: protocols.title, category: protocols.category, tag: protocols.tag, status: protocols.status, version: protocols.version, updatedAt: protocols.updatedAt, owner: protocols.owner, summary: protocols.summary, duration: protocols.duration, steps: protocols.steps, notes: protocols.notes }).from(protocols).orderBy(asc(protocols.id)),
