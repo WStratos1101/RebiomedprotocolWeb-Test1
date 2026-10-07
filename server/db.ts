@@ -494,6 +494,84 @@ export const seedProtocols = [
     ],
     notes: ["Giữ lạnh trong quá trình điện di.", "Không dùng reducing buffer nếu cần bảo toàn hoạt tính enzyme.", "Thời gian incubation có thể kéo dài 18–24 giờ tùy tín hiệu cần phát hiện.", { type: "table", title: "Bảng pha gel Zymography", columns: ["Thành phần", "Separating gel (7.5%)", "Stacking gel (5%)"], rows: [["Water", "0.85 mL", "1.172 mL"], ["30% Acrylamide", "1.25 mL", "0.268 mL"], ["1.5M Tris-HCl (pH 8.8)", "1.3 mL", "0 mL"], ["0.5M Tris HCl (pH 6.8)", "0 mL", "0.52 mL"], ["Gelatin 10 mg/mL", "1.6 mL", "0 mL"], ["10% SDS", "50 µL", "20 µL"], ["10% APS", "50 µL", "20 µL"], ["TEMED", "5 µL", "2 µL"], ["Total volume", "5 mL", "2 mL"], ["Volume added to the cast", "4–4.5 mL", "1–1.5 mL"]] }],
   },
+  {
+    slug: "rna-extraction-trizol",
+    title: "Quy trình tách RNA bằng Trizol",
+    category: "ProtocolPCR",
+    tag: "RNA / Trizol",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Tách RNA từ tế bào hoặc mô bằng Trizol, chloroform, isopropanol và ethanol 70–75%.",
+    duration: "Khoảng 1–3 giờ",
+    steps: [
+      { title: "Chuẩn bị dụng cụ và mẫu", detail: "Toàn bộ dụng cụ (epp, tip...) và DEPC phải được khử DNAase/RNAse. Rút bỏ môi trường nuôi cấy càng nhiều càng tốt; nếu thu pellet, rửa bằng PBS lạnh và ly tâm ở 4°C.", time: "—" },
+      { title: "Thêm Trizol", detail: "Với tế bào trên đĩa, thêm Trizol vừa đủ phủ kín bề mặt; 250 μL đủ phủ giếng 6. Với pellet, dùng khoảng 1 mL cho 1 triệu tế bào. Với mô, nghiền trong 250 μL rồi thêm 250–750 μL nếu cần.", time: "—" },
+      { title: "Ủ và chuyển mẫu", detail: "Ủ 15 phút rồi chuyển sang epp mới, ưu tiên epp 1,5 mL. Kiểm tra tế bào đã bong hoàn toàn; với mô, nghiền trong nitrogen lỏng đến khi mô tan hoàn toàn.", time: "15 phút" },
+      { title: "Vortex và tách pha", detail: "Vortex 20–30 giây. Thêm chloroform theo tỷ lệ 1:5 so với Trizol, ví dụ 50 μL chloroform cho 250 μL Trizol. Ủ 3–6 phút rồi ly tâm 12.000 g trong 15 phút ở 4°C.", time: "20–30 giây; 3–6 phút; 15 phút · 4°C" },
+      { title: "Thu pha RNA", detail: "Sau ly tâm, thu lớp trong suốt trên cùng và chuyển sang epp mới. Thể tích thường bằng 40–60% thể tích Trizol đầu vào.", time: "—" },
+      { title: "Kết tủa RNA", detail: "Thêm isopropanol 100% lạnh −20°C bằng thể tích pha RNA đã hút. Ủ −20°C 15–30 phút với mẫu nhiều RNA, 1–3 giờ với mẫu ít RNA hoặc −86°C qua đêm nếu thu microRNA. Ly tâm 12.000 g trong 10 phút ở 4°C.", time: "10 phút · 4°C" },
+      { title: "Rửa pellet", detail: "Loại bỏ isopropanol. Thêm ethanol 70–75% bằng lượng Trizol đầu vào, vortex 5–10 giây, ly tâm 7.500 g trong 5 phút. Có thể lặp lại bước rửa một lần.", time: "5–10 giây; 5 phút" },
+      { title: "Làm khô và hòa tan RNA", detail: "Hút toàn bộ ethanol dư, để khô 5–15 phút nhưng không làm pellet khô quá lâu. Nếu còn nhiều ethanol, có thể mở nắp và heat block 55°C trong 5 phút. Thêm DEPC, vortex 5 giây và spin down; mẫu ít RNA dùng 20–30 μL, mẫu nhiều RNA dùng 50–60 μL.", time: "5–15 phút; 55°C nếu cần" },
+    ],
+    notes: ["Luôn dùng vật tư và hóa chất không có DNAase/RNAse.", "Giữ lạnh ở các bước ly tâm và tránh làm mất lớp RNA trong suốt.", "Ghi lại thể tích Trizol, pha RNA thu được và thể tích DEPC cuối cùng."],
+  },
+  {
+    slug: "rna-dna-gel-electrophoresis",
+    title: "Điện di RNA/DNA",
+    category: "ProtocolPCR",
+    tag: "RNA / DNA gel",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Chuẩn bị gel agarose và SuperGreen để kiểm tra RNA, DNA hoặc sản phẩm PCR.",
+    duration: "Khoảng 30–45 phút",
+    steps: [
+      { title: "Cân agarose", detail: "Cân bột agarose vào beaker hoặc duran. Dùng 1% cho RNA và DNA; dùng 1,5–2% cho sản phẩm PCR tùy kích thước cần phân tách.", time: "—" },
+      { title: "Pha dung dịch gel", detail: "Thêm nước để đạt đúng nồng độ agarose yêu cầu. Thêm SuperGreen theo tỷ lệ 1:10.000, ví dụ 3 μL cho 30 mL gel.", time: "—" },
+      { title: "Đun tan agarose", detail: "Bịt miệng beaker/duran bằng giấy nến rồi microwave đến khi agarose tan hoàn toàn. Chương trình P100 khoảng 1 phút 30 giây thường đủ cho 30–40 mL agarose; kiểm tra và lắc nhẹ giữa các lần gia nhiệt.", time: "Khoảng 1 phút 30 giây" },
+      { title: "Đổ gel và chạy mẫu", detail: "Đổ gel vào khuôn, đặt lược và chờ gel đông hoàn toàn trước khi nạp mẫu. Chạy RNA/DNA theo buffer, điện áp và thời gian đã được phê duyệt cho loại mẫu.", time: "Theo assay" },
+    ],
+    notes: ["Không đun quá lâu làm bay hơi nước và thay đổi nồng độ gel.", "Cẩn thận khi lấy beaker sau microwave vì dung dịch rất nóng.", "Chọn nồng độ agarose phù hợp với kích thước RNA/DNA cần quan sát."],
+  },
+  {
+    slug: "cdna-reverse-transcription",
+    title: "cDNA Reverse-transcription",
+    category: "ProtocolPCR",
+    tag: "RNA / cDNA",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Tổng hợp cDNA từ RNA đã đo nồng độ bằng Nanodrop với SensiFAST cDNA Synthesis Kit.",
+    duration: "Khoảng 1 giờ",
+    steps: [
+      { title: "Xác định lượng RNA", detail: "Sau khi đo nồng độ RNA bằng Nanodrop, xác định lượng cDNA cần tổng hợp. Lượng RNA đầu vào tối đa 1.500 ng, tối thiểu khuyến nghị 500 ng.", time: "—" },
+      { title: "Chọn thể tích phản ứng", detail: "Có thể giảm thể tích phản ứng cDNA xuống 10 μL bằng cách giảm một nửa thể tích từng thành phần. Phản ứng tiêu chuẩn trong bảng Master Mix cDNA là 20 μL.", time: "10 hoặc 20 μL" },
+      { title: "Pha master mix", detail: "Khi có nhiều hơn 5 phản ứng, pha master mix theo bảng tính. Cho DEPC vào từng epp trước, sau đó thêm 5x TransAmp Buffer, Reverse Transcriptase và RNA.", time: ">5 mẫu" },
+      { title: "Chạy chương trình cDNA", detail: "Đặt epp 0,2 mL vào máy với chương trình cDNA Synthesis: 25°C 10 phút, 42°C 15 phút, tùy chọn 48°C 15 phút với RNA cấu trúc cao, 85°C 5 phút, giữ 4°C hoặc làm lạnh trên đá.", time: "Khoảng 45 phút" },
+      { title: "Bảo quản cDNA", detail: "Lấy epp ra khỏi máy và bảo quản cDNA ở −20°C.", time: "−20°C" },
+    ],
+    notes: ["Không vượt quá 1.500 ng RNA trong phản ứng 20 μL.", "Dùng bảng Master Mix cDNA để giảm sai số khi pha nhiều mẫu.", "Ghi rõ kí hiệu mẫu và thể tích RNA thực tế đã hút."],
+  },
+  {
+    slug: "qpcr-sensifast-sybr-hirox",
+    title: "qPCR",
+    category: "ProtocolPCR",
+    tag: "RNA / qPCR",
+    status: "Đã duyệt" as const,
+    version: "v1.0",
+    owner: "W.Stratos",
+    summary: "Chuẩn bị master mix qPCR từ cDNA, SensiFAST SYBR Hi-ROX và primer trong DEPC.",
+    duration: "Khoảng 2–3 giờ",
+    steps: [
+      { title: "Pha master mix 1", detail: "Pha loãng 2X SensiFAST™ SYBR® Hi-ROX Kit theo thể tích phản ứng và số mẫu cần chạy.", time: "—" },
+      { title: "Pha master mix 2", detail: "Pha loãng cDNA trong master mix 1 theo thiết kế thí nghiệm, giữ cùng thể tích cuối giữa các mẫu.", time: "—" },
+      { title: "Pha master mix 3", detail: "Pha loãng primer trong DEPC, chuẩn bị riêng primer forward và reverse theo nồng độ đã được phê duyệt.", time: "—" },
+      { title: "Setup đĩa qPCR", detail: "Phân phối master mix và mẫu vào plate, bổ sung NTC và các đối chứng cần thiết. Kiểm tra kí hiệu giếng trước khi đóng plate.", time: "—" },
+      { title: "Cài chương trình và chạy", detail: "Thiết lập plate trên phần mềm qPCR, kiểm tra chương trình nhiệt và bắt đầu chạy. Lưu raw data cùng thông tin lot kit, primer và ngày chạy.", time: "Theo assay" },
+    ],
+    notes: ["Giữ master mix và primer trên đá trong thời gian setup.", "Luôn có NTC và đối chứng phù hợp.", "Lưu lại cấu hình plate, chương trình nhiệt và raw data sau khi chạy."],
+  },
 ];
 const seedSamples = [
   { code: "SMP-CELL-001", name: "HeLa cell lysate", groupName: "Cell lysate", status: "Đang dùng", description: "Lysate tế bào HeLa dùng cho các assay protein và kiểm soát nội bộ.", properties: [{ label: "Matrix", value: "RIPA buffer" }, { label: "Nồng độ mục tiêu", value: "1–3 mg/mL" }, { label: "Bảo quản", value: "−80°C" }, { label: "Freeze-thaw", value: "≤ 2 lần" }], theory: "RIPA là buffer ly giải mạnh, phù hợp thu hồi protein màng và protein nhân. SDS trong buffer có thể ảnh hưởng assay, vì vậy cần đối chứng matrix trước khi định lượng." },
@@ -521,6 +599,28 @@ const seedRuns = [
 ];
 
 let zymographyGelTableReady: Promise<void> | null = null;
+let additionalProtocolSeedReady: Promise<void> | null = null;
+
+const additionalProtocolSlugs = new Set(["rna-extraction-trizol", "rna-dna-gel-electrophoresis", "cdna-reverse-transcription", "qpcr-sensifast-sybr-hirox"]);
+
+async function ensureAdditionalProtocolSeeds(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  if (!additionalProtocolSeedReady) {
+    additionalProtocolSeedReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`contentSeedMarkers\` (\`seedKey\` varchar(160) NOT NULL PRIMARY KEY, \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)`).then(async () => {
+      const result = await db.execute(sql`SELECT \`seedKey\` FROM \`contentSeedMarkers\` WHERE \`seedKey\` = 'protocols-rna-cdna-2026-10-07' LIMIT 1`);
+      const rows = (result[0] ?? []) as unknown as Array<{ seedKey?: string }>;
+      if (rows.length > 0) return;
+      for (const seed of seedProtocols.filter(item => additionalProtocolSlugs.has(item.slug))) {
+        const existing = await db.select({ id: protocols.id }).from(protocols).where(eq(protocols.slug, seed.slug)).limit(1);
+        if (existing.length === 0) await db.insert(protocols).values(seed);
+      }
+      await db.execute(sql`INSERT INTO \`contentSeedMarkers\` (\`seedKey\`) VALUES ('protocols-rna-cdna-2026-10-07')`);
+    }).catch(error => {
+      additionalProtocolSeedReady = null;
+      throw error;
+    });
+  }
+  await additionalProtocolSeedReady;
+}
 
 async function ensureZymographyGelTable(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
   if (!zymographyGelTableReady) {
@@ -579,6 +679,7 @@ export async function getLabContent() {
   const db = await getDb();
   if (!db) return { protocols: [], samples: [], calculators: [], runs: [] };
   await ensureLabSeed();
+  await ensureAdditionalProtocolSeeds(db);
   await ensureZymographyGelTable(db);
   const [protocolRows, sampleRows, calculatorRows, runRows] = await Promise.all([
     db.select().from(protocols).orderBy(asc(protocols.id)),

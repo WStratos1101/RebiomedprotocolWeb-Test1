@@ -144,7 +144,7 @@ export const appRouter = router({
   content: router({
     all: publicProcedure.query(() => getLabContent()),
     createDraft: publicProcedure
-      .input(z.object({ kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), category: z.enum(["Custom", "Hypoxia", "HighPressure", "ProtocolCells", "ProtocolPCR", "ProtocolEvaluation", "ProtocolStaining"]).default("Custom"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80), calculatorIds: z.array(z.string().max(120)).max(3).default([]) })).optional() }))
+      .input(z.object({ kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), category: z.enum(["Custom", "Hypoxia", "HighPressure", "ProtocolCells", "ProtocolPCR", "ProtocolEvaluation", "ProtocolStaining"]).default("Custom"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80), calculatorIds: z.array(z.string().max(120)).max(3).refine(ids => { const nonEmpty = ids.filter(Boolean); return new Set(nonEmpty).size === nonEmpty.length; }, "Không được liên kết trùng công cụ.").default([]) })).optional() }))
       .mutation(async ({ input }) => {
         if (input.kind === "protocol") await createProtocolDraft({ title: input.title, summary: input.body, owner: input.owner, category: input.category, steps: input.steps });
         else await createSampleDraft({ name: input.title, description: input.body });
@@ -182,7 +182,7 @@ export const appRouter = router({
         return { success: true } as const;
       }),
     updateDraft: publicProcedure
-      .input(z.object({ id: z.number().int().positive(), kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), category: z.enum(["Custom", "Hypoxia", "HighPressure", "ProtocolCells", "ProtocolPCR", "ProtocolEvaluation", "ProtocolStaining"]).default("Custom"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80), calculatorIds: z.array(z.string().max(120)).max(3).default([]) })).optional() }))
+      .input(z.object({ id: z.number().int().positive(), kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), category: z.enum(["Custom", "Hypoxia", "HighPressure", "ProtocolCells", "ProtocolPCR", "ProtocolEvaluation", "ProtocolStaining"]).default("Custom"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80), calculatorIds: z.array(z.string().max(120)).max(3).refine(ids => { const nonEmpty = ids.filter(Boolean); return new Set(nonEmpty).size === nonEmpty.length; }, "Không được liên kết trùng công cụ.").default([]) })).optional() }))
       .mutation(async ({ input, ctx }) => {
         if (input.kind === "protocol") {
           const current = await getProtocolById(input.id);
