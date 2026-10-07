@@ -586,7 +586,9 @@ const seedCalculators = [
   { slug: "manual-cell-count", name: "Đếm tế bào bằng buồng đếm thủ công", category: "Cells", formula: "(TB trung bình / ô) × hệ số pha loãng × 10⁴", description: "Tính mật độ tế bào từ số tế bào đếm được trong buồng đếm thủ công.", config: { inputs: ["averageCells", "countedSquares", "dilutionFactor"], units: { averageCells: "cells", countedSquares: "ô", dilutionFactor: "×" } } },
   { slug: "cells-needed", name: "Tính số lượng tế bào cần", category: "Cell seeding", formula: "Mật độ mục tiêu × số đơn vị × thể tích / đơn vị", description: "Tính tổng số tế bào cần chuẩn bị cho các giếng hoặc đơn vị nuôi cấy.", config: { inputs: ["targetDensity", "unitCount", "volumePerUnit"], units: { targetDensity: "cells/mL", unitCount: "đơn vị", volumePerUnit: "mL" } } },
   { slug: "volume-to-take", name: "Tính thể tích cần lấy", category: "Cell seeding", formula: "V lấy = N mong muốn / N tổng × V tổng", description: "Tính thể tích cần hút từ suspension hiện có để thu được số tế bào mong muốn.", config: { inputs: ["desiredCells", "totalCells", "totalVolume"], units: { desiredCells: "cells", totalCells: "cells", totalVolume: "mL" } } },
+  { slug: "volume-to-add", name: "Tính lượng thể tích cần thêm", category: "Hóa chất", formula: "V mục tiêu − V có sẵn − V đã thêm", description: "Tính lượng dung tích còn cần bổ sung để đạt tổng dung tích mục tiêu.", config: { inputs: ["availableVolume", "addedVolume", "targetVolume"], units: { availableVolume: "mL", addedVolume: "mL", targetVolume: "mL" } } },
   { slug: "seeding", name: "Seeding", category: "Cells", formula: "Tổng môi trường = số đơn vị × thể tích mỗi đơn vị", description: "Tính tổng môi trường, thể tích suspension chứa tế bào cần lấy và môi trường cần bổ sung khi seed.", config: { kind: "seeding", defaultCountedSquares: 4, defaultSolutionVolume: 1, defaultDilutionFactor: 1.5, vessels: { "giếng 96": 100, "giếng 48": 250, "giếng 6": 1200, "flask T25": 2500 } } },
+  { slug: "nycodenz", name: "Tính pha Nycodenz", category: "Hóa chất", formula: "V Nycodenz = V lớp × % sử dụng / % stock", description: "Tool ẩn chỉ được liên kết và sử dụng trong bước quy trình; không hiện trong bảng Công cụ tính tổng hợp.", config: { kind: "nycodenz", protocolOnly: true, volumeUnit: "mL", layerModes: ["1 phân lớp", "2 phân lớp"] } },
   { slug: "hypoxia-headspace", name: "Ước tính O₂ pha khí hệ kín", category: "Hypoxia", formula: "n(O₂) = P tuyệt đối × V khí × %O₂ / (R × T)", description: "Ước tính lượng O₂ pha khí và thời gian đến ngưỡng giả định; không thay cho đo oxy tại tế bào.", config: { model: "ideal-gas-headspace", reference: "https://www.mdpi.com/2073-4409/9/11/2456" } },
 ];
 
@@ -600,6 +602,7 @@ const seedRuns = [
 
 let zymographyGelTableReady: Promise<void> | null = null;
 let additionalProtocolSeedReady: Promise<void> | null = null;
+let additionalCalculatorSeedReady: Promise<void> | null = null;
 
 const additionalProtocolSlugs = new Set(["rna-extraction-trizol", "rna-dna-gel-electrophoresis", "cdna-reverse-transcription", "qpcr-sensifast-sybr-hirox"]);
 
@@ -620,6 +623,26 @@ async function ensureAdditionalProtocolSeeds(db: NonNullable<Awaited<ReturnType<
     });
   }
   await additionalProtocolSeedReady;
+}
+
+const additionalCalculatorSlugs = new Set(["volume-to-add", "nycodenz"]);
+async function ensureAdditionalCalculatorSeeds(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  if (!additionalCalculatorSeedReady) {
+    additionalCalculatorSeedReady = db.execute(sql`CREATE TABLE IF NOT EXISTS \`contentSeedMarkers\` (\`seedKey\` varchar(160) NOT NULL PRIMARY KEY, \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)`).then(async () => {
+      const result = await db.execute(sql`SELECT \`seedKey\` FROM \`contentSeedMarkers\` WHERE \`seedKey\` = 'calculators-volume-add-nycodenz-2026-10-07' LIMIT 1`);
+      const rows = (result[0] ?? []) as unknown as Array<{ seedKey?: string }>;
+      if (rows.length > 0) return;
+      for (const seed of seedCalculators.filter(item => additionalCalculatorSlugs.has(item.slug))) {
+        const existing = await db.select({ id: calculators.id }).from(calculators).where(eq(calculators.slug, seed.slug)).limit(1);
+        if (existing.length === 0) await db.insert(calculators).values(seed);
+      }
+      await db.execute(sql`INSERT INTO \`contentSeedMarkers\` (\`seedKey\`) VALUES ('calculators-volume-add-nycodenz-2026-10-07')`);
+    }).catch(error => {
+      additionalCalculatorSeedReady = null;
+      throw error;
+    });
+  }
+  await additionalCalculatorSeedReady;
 }
 
 async function ensureZymographyGelTable(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
@@ -680,6 +703,7 @@ export async function getLabContent() {
   if (!db) return { protocols: [], samples: [], calculators: [], runs: [] };
   await ensureLabSeed();
   await ensureAdditionalProtocolSeeds(db);
+  await ensureAdditionalCalculatorSeeds(db);
   await ensureZymographyGelTable(db);
   const [protocolRows, sampleRows, calculatorRows, runRows] = await Promise.all([
     db.select().from(protocols).orderBy(asc(protocols.id)),

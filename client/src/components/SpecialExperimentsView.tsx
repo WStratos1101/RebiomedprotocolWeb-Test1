@@ -11,7 +11,7 @@ export const SPECIAL_CATEGORY_LABEL: Record<SpecialCategory, string> = {
 };
 
 type ProtocolSummary = { id: string; title: string; owner: string; summary: string; category: string; steps: { title: string }[] };
-type ToolSummary = { id: string; name: string; formula: string; description: string; category: string };
+type ToolSummary = { id: string; name: string; formula: string; description: string; category: string; protocolOnly?: boolean };
 
 export function SpecialExperimentsView({
   protocols, tools, category, setCategory, openProtocol, openTool, createProtocol, createTool,
@@ -27,7 +27,7 @@ export function SpecialExperimentsView({
 }) {
   const [showHypoxia, setShowHypoxia] = useState(false);
   const groupProtocols = protocols.filter(protocol => protocol.category === category);
-  const groupTools = tools.filter(tool => tool.category === category);
+  const groupTools = tools.filter(tool => tool.category === category && !tool.protocolOnly);
   const selectCategory = (next: SpecialCategory) => { setCategory(next); setShowHypoxia(false); };
   return <div className="special-page">
     <div className="special-intro"><span className="panel-index">CONDITION LAB / EXPERIMENT LIBRARY</span><h1>Thí nghiệm <em>điều kiện đặc trưng.</em></h1><p>Quy trình và công cụ tính được phân theo điều kiện nuôi — để thiết kế, ghi chép và rà soát ngay cùng một nơi.</p></div>
