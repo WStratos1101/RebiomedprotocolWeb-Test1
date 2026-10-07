@@ -535,10 +535,6 @@ export async function ensureLabSeed() {
     const missingProtocols = seedProtocols.filter(item => !existingProtocolSlugs.has(item.slug));
     if (missingProtocols.length > 0) await db.insert(protocols).values(missingProtocols);
   }
-  const existingCalculators = await db.select({ slug: calculators.slug }).from(calculators);
-  const existingCalculatorSlugs = new Set(existingCalculators.map(item => item.slug));
-  const missingCalculators = seedCalculators.filter(item => !existingCalculatorSlugs.has(item.slug));
-  if (missingCalculators.length > 0) await db.insert(calculators).values(missingCalculators);
 }
 
 export async function getLabContent() {
@@ -717,8 +713,7 @@ export async function deleteProtocolById(id: number) {
 export async function deleteCalculatorById(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  // Keep the seed slug as a tombstone so ensureLabSeed does not recreate it.
-  await db.update(calculators).set({ active: 0 }).where(eq(calculators.id, id));
+  await db.delete(calculators).where(eq(calculators.id, id));
 }
 
 export async function listTeamMembers(viewerUsername?: string | null) {

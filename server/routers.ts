@@ -226,7 +226,21 @@ export const appRouter = router({
       return { success: true as const };
     }),
     approveSample: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setSampleStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
+    rejectSample: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
+      const current = await getSampleById(input.id);
+      if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy mục lý thuyết." });
+      if (current.status !== "Bản nháp") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ có thể từ chối mục đang ở bản nháp." });
+      await deleteSampleById(input.id);
+      return { success: true as const };
+    }),
     approveCalculator: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setCalculatorStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
+    rejectCalculator: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
+      const current = await getCalculatorById(input.id);
+      if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy công cụ." });
+      if (current.status !== "Bản nháp") throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ có thể từ chối công cụ đang ở bản nháp." });
+      await deleteCalculatorById(input.id);
+      return { success: true as const };
+    }),
   }),
 
   chemicals: router({
