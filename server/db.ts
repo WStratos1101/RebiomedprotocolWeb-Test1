@@ -492,7 +492,7 @@ export const seedProtocols = [
       { title: "Rửa gel sau ủ", detail: "Rửa gel trong PBST/TBST/nước trong 5 phút.", time: "5 phút" },
       { title: "Nhuộm và tẩy nền", detail: "Nhuộm gel bằng Coomassie Blue trong 40 phút. Destain gel bằng destain solution đến khi các band hiện rõ, khoảng 1 giờ.", time: "Khoảng 1 giờ 40 phút" },
     ],
-    notes: ["Giữ lạnh trong quá trình điện di.", "Không dùng reducing buffer nếu cần bảo toàn hoạt tính enzyme.", "Thời gian incubation có thể kéo dài 18–24 giờ tùy tín hiệu cần phát hiện."],
+    notes: ["Giữ lạnh trong quá trình điện di.", "Không dùng reducing buffer nếu cần bảo toàn hoạt tính enzyme.", "Thời gian incubation có thể kéo dài 18–24 giờ tùy tín hiệu cần phát hiện.", { type: "table", title: "Bảng pha gel Zymography", columns: ["Thành phần", "Separating gel (7.5%)", "Stacking gel (5%)"], rows: [["Water", "0.85 mL", "1.172 mL"], ["30% Acrylamide", "1.25 mL", "0.268 mL"], ["1.5M Tris-HCl (pH 8.8)", "1.3 mL", "0 mL"], ["0.5M Tris HCl (pH 6.8)", "0 mL", "0.52 mL"], ["Gelatin 10 mg/mL", "1.6 mL", "0 mL"], ["10% SDS", "50 µL", "20 µL"], ["10% APS", "50 µL", "20 µL"], ["TEMED", "5 µL", "2 µL"], ["Total volume", "5 mL", "2 mL"], ["Volume added to the cast", "4–4.5 mL", "1–1.5 mL"]] }],
   },
 ];
 const seedSamples = [

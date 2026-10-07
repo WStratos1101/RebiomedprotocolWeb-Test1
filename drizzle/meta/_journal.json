@@ -127,6 +127,13 @@
       "when": 1791360000000,
       "tag": "0017_restore_protein_protocols",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1791361200000,
+      "tag": "0018_zymography_gel_table",
+      "breakpoints": true
     }
   ]
 }
