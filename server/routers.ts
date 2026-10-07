@@ -5,7 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, isAdminLikeRole, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { verifyPassword } from "./_core/password";
 import { decryptPasswordForAccount } from "./_core/passwordVault";
-import { createCalculatorDraft, createChemicalRecipe, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteChemicalRecipeById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getChemicalRecipeById, getLabContent, getProtocolById, getSampleById, getUserByEmail, getUserById, getUserByUsernameOrEmail, listChemicalRecipes, listTeamMembers, setCalculatorStatus, setChemicalRecipeStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateChemicalRecipe, updateProtocolDraft, updateSampleDraft, updateUserApproval, updateUserProfile, updateUserRole } from "./db";
+import { createCalculatorDraft, createChemicalRecipe, createEmailUser, createProtocolDraft, createSampleDraft, deleteCalculatorById, deleteChemicalRecipeById, deleteProtocolById, deleteSampleById, deleteUserById, getCalculatorById, getChemicalRecipeById, getLabContent, getProtocolById, getSampleById, getUserByEmail, getUserById, getUserByUsernameOrEmail, listChemicalRecipes, listTeamMembers, setCalculatorStatus, setChemicalRecipeStatus, setProtocolStatus, setSampleStatus, setUserPassword, updateCalculatorById, updateChemicalRecipe, updateProtocolDraft, updateSampleDraft, updateUserApproval, listPendingContentEdits, approvePendingContentEdit, rejectPendingContentEdit, updateUserProfile, updateUserRole } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ONE_YEAR_MS } from "@shared/const";
@@ -146,14 +146,15 @@ export const appRouter = router({
     all: publicProcedure.query(() => getLabContent()),
     createDraft: publicProcedure
       .input(z.object({ kind: z.enum(["protocol", "sample"]), title: z.string().trim().min(1).max(255), body: z.string().max(10000).default(""), owner: z.string().trim().min(1).max(160).default("Lab editor"), category: z.enum(["Custom", "Hypoxia", "HighPressure", "ProtocolCells", "ProtocolPCR", "ProtocolEvaluation", "ProtocolStaining"]).default("Custom"), steps: z.array(z.object({ title: z.string().trim().min(1).max(255), detail: z.string().max(5000), time: z.string().max(80), calculatorIds: z.array(z.string().max(120)).max(3).refine(ids => { const nonEmpty = ids.filter(Boolean); return new Set(nonEmpty).size === nonEmpty.length; }, "Không được liên kết trùng công cụ.").default([]) })).optional() }))
-      .mutation(async ({ input }) => {
-        if (input.kind === "protocol") await createProtocolDraft({ title: input.title, summary: input.body, owner: input.owner, category: input.category, steps: input.steps });
+      .mutation(async ({ input, ctx }) => {
+        const approved = isAdminLikeRole(ctx.user?.role);
+        if (input.kind === "protocol") await createProtocolDraft({ title: input.title, summary: input.body, owner: input.owner, category: input.category, steps: input.steps }, approved);
         else await createSampleDraft({ name: input.title, description: input.body });
         return { success: true } as const;
       }),
     createCalculator: publicProcedure
       .input(z.object({ name: z.string().trim().min(1).max(160), formula: z.string().trim().min(1).max(160), description: z.string().max(10000).default(""), category: z.enum(["Chemicals", "Cells", "PCR", "Custom", "Hypoxia", "HighPressure"]).default("Custom"), inputUnits: z.record(z.string(), z.string().max(32)).default({}), outputUnit: z.string().max(32).default(""), variables: z.array(z.object({ key: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), label: z.string().trim().min(1).max(120), unit: z.string().max(32) })).max(8).default([]) }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         try {
           const variables = getFormulaVariables(input.formula);
           if (variables.length === 0 || variables.length > 8) throw new Error("Công thức cần từ 1 đến 8 biến.");
@@ -162,7 +163,7 @@ export const appRouter = router({
         } catch (error) {
           throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Công thức không hợp lệ." });
         }
-        await createCalculatorDraft(input);
+        await createCalculatorDraft(input, isAdminLikeRole(ctx.user?.role));
         return { success: true } as const;
       }),
     updateCalculator: publicProcedure
@@ -170,7 +171,6 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const current = await getCalculatorById(input.id);
         if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy công cụ." });
-        if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được sửa công cụ đã duyệt." });
         try {
           const variables = getFormulaVariables(input.formula);
           if (variables.length > 8) throw new Error("Công thức cần tối đa 8 biến.");
@@ -179,7 +179,7 @@ export const appRouter = router({
         } catch (error) {
           throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Công thức không hợp lệ." });
         }
-        await updateCalculatorById(input.id, input);
+        await updateCalculatorById(input.id, input, ctx.user?.id, ctx.user?.role);
         return { success: true } as const;
       }),
     updateDraft: publicProcedure
@@ -188,8 +188,7 @@ export const appRouter = router({
         if (input.kind === "protocol") {
           const current = await getProtocolById(input.id);
           if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy quy trình." });
-          if (current.status === "Đã duyệt" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được sửa bản đã duyệt." });
-          await updateProtocolDraft(input.id, { title: input.title, summary: input.body, owner: input.owner, category: input.category, steps: input.steps });
+          await updateProtocolDraft(input.id, { title: input.title, summary: input.body, owner: input.owner, category: input.category, steps: input.steps }, ctx.user?.id, ctx.user?.role);
         }
         else {
           const current = await getSampleById(input.id);
@@ -226,6 +225,9 @@ export const appRouter = router({
     deleteCalculator: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => { const current = await getCalculatorById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy công cụ." }); if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá công cụ đã duyệt." }); await deleteCalculatorById(input.id); return { success: true } as const; }),
+    pendingEdits: adminProcedure.query(() => listPendingContentEdits()),
+    approvePendingEdit: adminProcedure.input(z.object({ kind: z.enum(["protocol", "calculator"]), id: z.number().int().positive() })).mutation(async ({ input }) => { await approvePendingContentEdit(input.kind, input.id); return { success: true as const }; }),
+    rejectPendingEdit: adminProcedure.input(z.object({ kind: z.enum(["protocol", "calculator"]), id: z.number().int().positive() })).mutation(async ({ input }) => { await rejectPendingContentEdit(input.kind, input.id); return { success: true as const }; }),
     approveProtocol: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setProtocolStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
     rejectProtocol: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
       const current = await getProtocolById(input.id);

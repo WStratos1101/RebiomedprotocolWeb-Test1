@@ -10,10 +10,32 @@ import { hashPassword } from "./_core/password";
 let _db: ReturnType<typeof drizzle> | null = null;
 let experimentLogsTableReady: Promise<void> | null = null;
 let supporterIdentityReady: Promise<void> | null = null;
+let pendingEditColumnsReady: Promise<void> | null = null;
 
 const SUPPORTER_USERNAME = "supporter";
 const SUPPORTER_NAME = "website supporter";
 const LEGACY_SUPPORTER_NAME = "bao nguyen gia";
+async function ensurePendingEditColumns(db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
+  if (!pendingEditColumnsReady) {
+    pendingEditColumnsReady = (async () => {
+      for (const statement of [
+        sql`ALTER TABLE \`protocols\` ADD COLUMN \`pendingEdit\` JSON NULL`,
+        sql`ALTER TABLE \`protocols\` ADD COLUMN \`pendingEditBy\` INT NULL`,
+        sql`ALTER TABLE \`protocols\` ADD COLUMN \`pendingEditAt\` TIMESTAMP NULL`,
+        sql`ALTER TABLE \`calculators\` ADD COLUMN \`pendingEdit\` JSON NULL`,
+        sql`ALTER TABLE \`calculators\` ADD COLUMN \`pendingEditBy\` INT NULL`,
+        sql`ALTER TABLE \`calculators\` ADD COLUMN \`pendingEditAt\` TIMESTAMP NULL`,
+      ]) {
+        try { await db.execute(statement); } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!message.toLowerCase().includes("duplicate column")) throw error;
+        }
+      }
+    })().catch(error => { pendingEditColumnsReady = null; throw error; });
+  }
+  await pendingEditColumnsReady;
+}
+
 
 export function isSupporterAccount(user: { role?: string | null; username?: string | null; name?: string | null } | null | undefined) {
   const username = user?.username?.trim().toLowerCase();
@@ -833,6 +855,7 @@ export async function getLabContent() {
   const db = await getDb();
   if (!db) return { protocols: [], samples: [], calculators: [], runs: [] };
   await ensureLabSeed();
+  await ensurePendingEditColumns(db);
   await ensureAdditionalProtocolSeeds(db);
   await ensureAdditionalStainingProtocolSeeds(db);
   await ensureAdditionalCalculatorSeeds(db);
@@ -843,7 +866,9 @@ export async function getLabContent() {
     db.select().from(calculators).orderBy(asc(calculators.id)),
     db.select().from(experimentRuns).orderBy(asc(experimentRuns.id)),
   ]);
-  return { protocols: protocolRows, samples: sampleRows, calculators: calculatorRows, runs: runRows };
+  const visibleProtocols = protocolRows.map(({ pendingEdit: _pendingEdit, pendingEditBy: _pendingEditBy, pendingEditAt: _pendingEditAt, ...row }) => row);
+  const visibleCalculators = calculatorRows.map(({ pendingEdit: _pendingEdit, pendingEditBy: _pendingEditBy, pendingEditAt: _pendingEditAt, ...row }) => row);
+  return { protocols: visibleProtocols, samples: sampleRows, calculators: visibleCalculators, runs: runRows };
 }
 
 type ChemicalRecipeInput = {
@@ -996,13 +1021,16 @@ export async function deleteChemicalRecipeById(id: number) {
   if (result[0].affectedRows === 0) throw new Error("Không tìm thấy cách pha hoá chất.");
 }
 
-export async function createProtocolDraft(input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure" | "ProtocolCells" | "ProtocolPCR" | "ProtocolEvaluation" | "ProtocolStaining"; steps?: { title: string; detail: string; time: string; calculatorIds?: string[] }[] }) {
+type ProtocolContentInput = { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure" | "ProtocolCells" | "ProtocolPCR" | "ProtocolEvaluation" | "ProtocolStaining"; steps?: { title: string; detail: string; time: string; calculatorIds?: string[] }[] };
+type CalculatorContentInput = { name: string; formula: string; description: string; category?: "Chemicals" | "Cells" | "PCR" | "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] };
+const isAdminEditor = (role?: string | null) => role === "admin" || role === "supporter";
+
+export async function createProtocolDraft(input: ProtocolContentInput, approved = false) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-  await db.insert(protocols).values({ slug, title: input.title, category: input.category ?? "Custom", tag: input.category === "Hypoxia" ? "Hypoxia" : input.category === "HighPressure" ? "High pressure" : "New protocol", status: "Bản nháp", version: "v0.1", owner: input.owner, summary: input.summary || "Nội dung mới được thêm vào kho Rebiomed Protocol.", duration: "Chưa cập nhật", steps: input.steps?.length ? input.steps : [{ title: "Bắt đầu biên soạn", detail: input.summary || "Thêm hướng dẫn chi tiết cho bước này.", time: "—" }], notes: ["Bản nháp — cần review trước khi sử dụng trong thực nghiệm."] });
+  await db.insert(protocols).values({ slug, title: input.title, category: input.category ?? "Custom", tag: input.category === "Hypoxia" ? "Hypoxia" : input.category === "HighPressure" ? "High pressure" : "New protocol", status: approved ? "Đã duyệt" : "Bản nháp", version: approved ? "v1.0" : "v0.1", owner: input.owner, summary: input.summary || "Nội dung mới được thêm vào kho Rebiomed Protocol.", duration: "Chưa cập nhật", steps: input.steps?.length ? input.steps : [{ title: "Bắt đầu biên soạn", detail: input.summary || "Thêm hướng dẫn chi tiết cho bước này.", time: "—" }], notes: approved ? [] : ["Bản nháp — cần review trước khi sử dụng trong thực nghiệm."] });
 }
-
 export async function createSampleDraft(input: { name: string; description: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
@@ -1010,25 +1038,32 @@ export async function createSampleDraft(input: { name: string; description: stri
   await db.insert(samples).values({ code, name: input.name, groupName: "Bản nháp", status: "Bản nháp", description: input.description || "Mẫu mới được thêm vào kho Rebiomed Protocol.", properties: [{ label: "Trạng thái", value: "Chưa cập nhật" }], theory: input.description || "Bổ sung lý thuyết và dữ liệu tham chiếu cho mẫu này." });
 }
 
-export async function createCalculatorDraft(input: { name: string; formula: string; description: string; category?: "Chemicals" | "Cells" | "PCR" | "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] }) {
+export async function createCalculatorDraft(input: CalculatorContentInput, approved = false) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const slug = `${input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-  await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] }, status: "Bản nháp", active: 1 });
+  await db.insert(calculators).values({ slug, name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool mới được tạo trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] }, status: approved ? "Đã duyệt" : "Bản nháp", active: 1 });
 }
-
-export async function updateCalculatorById(id: number, input: { name: string; formula: string; description: string; category?: "Chemicals" | "Cells" | "PCR" | "Custom" | "Hypoxia" | "HighPressure"; inputUnits?: Record<string, string>; outputUnit?: string; variables?: { key: string; label: string; unit: string }[] }) {
+export async function updateCalculatorById(id: number, input: CalculatorContentInput, editorId?: number, editorRole?: string | null) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(calculators).set({ name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] } }).where(eq(calculators.id, id));
+  const values = { name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] } };
+  if (isAdminEditor(editorRole)) {
+    await db.update(calculators).set({ ...values, status: "Đã duyệt", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(calculators.id, id));
+  } else {
+    await db.update(calculators).set({ pendingEdit: values, pendingEditBy: editorId ?? null, pendingEditAt: new Date() }).where(eq(calculators.id, id));
+  }
 }
-
-export async function updateProtocolDraft(id: number, input: { title: string; summary: string; owner: string; category?: "Custom" | "Hypoxia" | "HighPressure" | "ProtocolCells" | "ProtocolPCR" | "ProtocolEvaluation" | "ProtocolStaining"; steps?: { title: string; detail: string; time: string; calculatorIds?: string[] }[] }) {
+export async function updateProtocolDraft(id: number, input: ProtocolContentInput, editorId?: number, editorRole?: string | null) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(protocols).set({ title: input.title, summary: input.summary, owner: input.owner, ...(input.category ? { category: input.category } : {}), ...(input.steps ? { steps: input.steps } : {}) }).where(eq(protocols.id, id));
+  const values = { title: input.title, summary: input.summary, owner: input.owner, ...(input.category ? { category: input.category } : {}), ...(input.steps ? { steps: input.steps } : {}) };
+  if (isAdminEditor(editorRole)) {
+    await db.update(protocols).set({ ...values, status: "Đã duyệt", version: "v1.0", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(protocols.id, id));
+  } else {
+    await db.update(protocols).set({ pendingEdit: values, pendingEditBy: editorId ?? null, pendingEditAt: new Date() }).where(eq(protocols.id, id));
+  }
 }
-
 export async function updateSampleDraft(id: number, input: { name: string; description: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
@@ -1047,6 +1082,44 @@ export async function deleteCalculatorById(id: number) {
   await db.delete(calculators).where(eq(calculators.id, id));
 }
 
+export type PendingContentEdit = { kind: "protocol" | "calculator"; id: number; title: string; editorId: number | null; updatedAt: Date | null };
+export async function listPendingContentEdits(): Promise<PendingContentEdit[]> {
+  const db = await getDb();
+  if (!db) return [];
+  await ensurePendingEditColumns(db);
+  const [protocolRows, calculatorRows] = await Promise.all([
+    db.select({ id: protocols.id, title: protocols.title, pendingEditBy: protocols.pendingEditBy, pendingEditAt: protocols.pendingEditAt }).from(protocols).where(isNotNull(protocols.pendingEdit)),
+    db.select({ id: calculators.id, name: calculators.name, pendingEditBy: calculators.pendingEditBy, pendingEditAt: calculators.pendingEditAt }).from(calculators).where(isNotNull(calculators.pendingEdit)),
+  ]);
+  return [
+    ...protocolRows.map(row => ({ kind: "protocol" as const, id: row.id, title: row.title, editorId: row.pendingEditBy ?? null, updatedAt: row.pendingEditAt ?? null })),
+    ...calculatorRows.map(row => ({ kind: "calculator" as const, id: row.id, title: row.name, editorId: row.pendingEditBy ?? null, updatedAt: row.pendingEditAt ?? null })),
+  ];
+}
+export async function approvePendingContentEdit(kind: "protocol" | "calculator", id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await ensurePendingEditColumns(db);
+  if (kind === "protocol") {
+    const row = (await db.select().from(protocols).where(eq(protocols.id, id)).limit(1))[0];
+    const pending = row?.pendingEdit && typeof row.pendingEdit === "object" ? row.pendingEdit as Record<string, unknown> : null;
+    if (!row || !pending) throw new Error("Không tìm thấy bản chỉnh sửa đang chờ duyệt.");
+    await db.update(protocols).set({ title: typeof pending.title === "string" ? pending.title : row.title, summary: typeof pending.summary === "string" ? pending.summary : row.summary, owner: typeof pending.owner === "string" ? pending.owner : row.owner, category: typeof pending.category === "string" ? pending.category : row.category, steps: Array.isArray(pending.steps) ? pending.steps : row.steps, status: "Đã duyệt", version: "v1.0", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(protocols.id, id));
+  } else {
+    const row = (await db.select().from(calculators).where(eq(calculators.id, id)).limit(1))[0];
+    const pending = row?.pendingEdit && typeof row.pendingEdit === "object" ? row.pendingEdit as Record<string, unknown> : null;
+    if (!row || !pending) throw new Error("Không tìm thấy bản chỉnh sửa đang chờ duyệt.");
+    await db.update(calculators).set({ name: typeof pending.name === "string" ? pending.name : row.name, category: typeof pending.category === "string" ? pending.category : row.category, formula: typeof pending.formula === "string" ? pending.formula : row.formula, description: typeof pending.description === "string" ? pending.description : row.description, config: pending.config && typeof pending.config === "object" ? pending.config : row.config, status: "Đã duyệt", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(calculators.id, id));
+  }
+}
+export async function rejectPendingContentEdit(kind: "protocol" | "calculator", id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await ensurePendingEditColumns(db);
+  const table = kind === "protocol" ? protocols : calculators;
+  const result = await db.update(table).set({ pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(table.id, id));
+  if (result[0].affectedRows === 0) throw new Error("Không tìm thấy bản chỉnh sửa đang chờ duyệt.");
+}
 export async function listTeamMembers(viewerUsername?: string | null) {
   const db = await getDb();
   if (!db) return [];
@@ -1076,6 +1149,7 @@ export async function setUserPassword(id: number, password: string, openId: stri
 export async function getProtocolById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
+  await ensurePendingEditColumns(db);
   return (await db.select().from(protocols).where(eq(protocols.id, id)).limit(1))[0];
 }
 
@@ -1088,6 +1162,7 @@ export async function getSampleById(id: number) {
 export async function getCalculatorById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
+  await ensurePendingEditColumns(db);
   return (await db.select().from(calculators).where(eq(calculators.id, id)).limit(1))[0];
 }
 

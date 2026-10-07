@@ -30,6 +30,9 @@ export const protocols = mysqlTable("protocols", {
   duration: varchar("duration", { length: 80 }).notNull(),
   steps: json("steps").notNull(),
   notes: json("notes").notNull(),
+  pendingEdit: json("pendingEdit"),
+  pendingEditBy: int("pendingEditBy"),
+  pendingEditAt: timestamp("pendingEditAt"),
 });
 
 export const samples = mysqlTable("samples", {
@@ -54,6 +57,9 @@ export const calculators = mysqlTable("calculators", {
   config: json("config").notNull(),
   status: varchar("status", { length: 32 }).default("Đã duyệt").notNull(),
   active: int("active").default(1).notNull(),
+  pendingEdit: json("pendingEdit"),
+  pendingEditBy: int("pendingEditBy"),
+  pendingEditAt: timestamp("pendingEditAt"),
 });
 
 export const chemicalRecipes = mysqlTable("chemicalRecipes", {
