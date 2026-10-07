@@ -855,20 +855,17 @@ export async function getLabContent() {
   const db = await getDb();
   if (!db) return { protocols: [], samples: [], calculators: [], runs: [] };
   await ensureLabSeed();
-  await ensurePendingEditColumns(db);
   await ensureAdditionalProtocolSeeds(db);
   await ensureAdditionalStainingProtocolSeeds(db);
   await ensureAdditionalCalculatorSeeds(db);
   await ensureZymographyGelTable(db);
   const [protocolRows, sampleRows, calculatorRows, runRows] = await Promise.all([
-    db.select().from(protocols).orderBy(asc(protocols.id)),
+    db.select({ id: protocols.id, slug: protocols.slug, title: protocols.title, category: protocols.category, tag: protocols.tag, status: protocols.status, version: protocols.version, updatedAt: protocols.updatedAt, owner: protocols.owner, summary: protocols.summary, duration: protocols.duration, steps: protocols.steps, notes: protocols.notes }).from(protocols).orderBy(asc(protocols.id)),
     db.select().from(samples).orderBy(asc(samples.id)),
-    db.select().from(calculators).orderBy(asc(calculators.id)),
+    db.select({ id: calculators.id, slug: calculators.slug, name: calculators.name, category: calculators.category, formula: calculators.formula, description: calculators.description, config: calculators.config, status: calculators.status, active: calculators.active }).from(calculators).orderBy(asc(calculators.id)),
     db.select().from(experimentRuns).orderBy(asc(experimentRuns.id)),
   ]);
-  const visibleProtocols = protocolRows.map(({ pendingEdit: _pendingEdit, pendingEditBy: _pendingEditBy, pendingEditAt: _pendingEditAt, ...row }) => row);
-  const visibleCalculators = calculatorRows.map(({ pendingEdit: _pendingEdit, pendingEditBy: _pendingEditBy, pendingEditAt: _pendingEditAt, ...row }) => row);
-  return { protocols: visibleProtocols, samples: sampleRows, calculators: visibleCalculators, runs: runRows };
+  return { protocols: protocolRows, samples: sampleRows, calculators: calculatorRows, runs: runRows };
 }
 
 type ChemicalRecipeInput = {
@@ -1049,8 +1046,9 @@ export async function updateCalculatorById(id: number, input: CalculatorContentI
   if (!db) throw new Error("Database is not available");
   const values = { name: input.name, category: input.category ?? "Custom", formula: input.formula, description: input.description || "Tool được cập nhật trong Rebiomed Protocol.", config: { syntax: "arithmetic", formula: input.formula, inputUnits: input.inputUnits ?? {}, outputUnit: input.outputUnit ?? "", variables: input.variables ?? [] } };
   if (isAdminEditor(editorRole)) {
-    await db.update(calculators).set({ ...values, status: "Đã duyệt", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(calculators.id, id));
+    await db.update(calculators).set({ ...values, status: "Đã duyệt" }).where(eq(calculators.id, id));
   } else {
+    await ensurePendingEditColumns(db);
     await db.update(calculators).set({ pendingEdit: values, pendingEditBy: editorId ?? null, pendingEditAt: new Date() }).where(eq(calculators.id, id));
   }
 }
@@ -1059,8 +1057,9 @@ export async function updateProtocolDraft(id: number, input: ProtocolContentInpu
   if (!db) throw new Error("Database is not available");
   const values = { title: input.title, summary: input.summary, owner: input.owner, ...(input.category ? { category: input.category } : {}), ...(input.steps ? { steps: input.steps } : {}) };
   if (isAdminEditor(editorRole)) {
-    await db.update(protocols).set({ ...values, status: "Đã duyệt", version: "v1.0", pendingEdit: null, pendingEditBy: null, pendingEditAt: null }).where(eq(protocols.id, id));
+    await db.update(protocols).set({ ...values, status: "Đã duyệt", version: "v1.0" }).where(eq(protocols.id, id));
   } else {
+    await ensurePendingEditColumns(db);
     await db.update(protocols).set({ pendingEdit: values, pendingEditBy: editorId ?? null, pendingEditAt: new Date() }).where(eq(protocols.id, id));
   }
 }
@@ -1149,8 +1148,7 @@ export async function setUserPassword(id: number, password: string, openId: stri
 export async function getProtocolById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  await ensurePendingEditColumns(db);
-  return (await db.select().from(protocols).where(eq(protocols.id, id)).limit(1))[0];
+  return (await db.select({ id: protocols.id, slug: protocols.slug, title: protocols.title, category: protocols.category, tag: protocols.tag, status: protocols.status, version: protocols.version, updatedAt: protocols.updatedAt, owner: protocols.owner, summary: protocols.summary, duration: protocols.duration, steps: protocols.steps, notes: protocols.notes }).from(protocols).where(eq(protocols.id, id)).limit(1))[0];
 }
 
 export async function getSampleById(id: number) {
@@ -1162,8 +1160,7 @@ export async function getSampleById(id: number) {
 export async function getCalculatorById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  await ensurePendingEditColumns(db);
-  return (await db.select().from(calculators).where(eq(calculators.id, id)).limit(1))[0];
+  return (await db.select({ id: calculators.id, slug: calculators.slug, name: calculators.name, category: calculators.category, formula: calculators.formula, description: calculators.description, config: calculators.config, status: calculators.status, active: calculators.active }).from(calculators).where(eq(calculators.id, id)).limit(1))[0];
 }
 
 export async function setProtocolStatus(id: number, status: "Đã duyệt" | "Bản nháp") {
