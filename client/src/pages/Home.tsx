@@ -152,8 +152,16 @@ function UserAvatar({ name }: { name?: string | null }) {
 type ProtocolRecord = { id: number; title: string; category: string; tag: string; status: Protocol["status"]; version: string; updatedAt: Date | string; owner: string; summary: string; duration: string; steps: unknown; notes: unknown };
 type SampleRecord = { id: number; code: string; name: string; groupName: string; status: string; updatedAt: Date | string; description: string; properties: unknown; theory: string };
 
+function toProtocolNotes(value: unknown): ProtocolNote[] {
+  let parsed = value;
+  if (typeof parsed === "string") {
+    try { parsed = JSON.parse(parsed) as unknown; } catch { return []; }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((note): note is ProtocolNote => typeof note === "string" || (typeof note === "object" && note !== null && (note as { type?: unknown }).type === "table" && Array.isArray((note as { columns?: unknown }).columns) && Array.isArray((note as { rows?: unknown }).rows)));
+}
 function toProtocol(record: ProtocolRecord): Protocol {
-  return { id: String(record.id), title: record.title, category: record.category, tag: record.tag, status: record.status, version: record.version, updatedAt: new Date(record.updatedAt).toLocaleDateString("vi-VN"), owner: record.owner, summary: record.summary, duration: record.duration, steps: Array.isArray(record.steps) ? record.steps as Protocol["steps"] : [], notes: Array.isArray(record.notes) ? record.notes as string[] : [] };
+  return { id: String(record.id), title: record.title, category: record.category, tag: record.tag, status: record.status, version: record.version, updatedAt: new Date(record.updatedAt).toLocaleDateString("vi-VN"), owner: record.owner, summary: record.summary, duration: record.duration, steps: Array.isArray(record.steps) ? record.steps as Protocol["steps"] : [], notes: toProtocolNotes(record.notes) };
 }
 
 function protocolCategory(value: string): ProtocolCategory {
