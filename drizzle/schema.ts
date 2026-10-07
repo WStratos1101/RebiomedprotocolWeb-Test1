@@ -30,7 +30,6 @@ export const protocols = mysqlTable("protocols", {
   duration: varchar("duration", { length: 80 }).notNull(),
   steps: json("steps").notNull(),
   notes: json("notes").notNull(),
-  noteTable: json("noteTable"),
 });
 
 export const samples = mysqlTable("samples", {

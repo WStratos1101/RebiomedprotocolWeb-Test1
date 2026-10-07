@@ -52,11 +52,6 @@ type SpecialCategory = "Hypoxia" | "HighPressure";
 const SPECIAL_CATEGORY_LABEL: Record<SpecialCategory, string> = { Hypoxia: "Nuôi cấy Hypoxia", HighPressure: "Nuôi cấy áp suất cao" };
 
 type View = "overview" | "protocols" | "samples" | "calculator" | "special" | "chemicals" | "chemicalStock" | "feedback" | "admin" | "adminAccounts" | "adminFeedback" | "auth" | "userAccount" | "createProtocol";
-type ProtocolNoteTable = {
-  title: string;
-  columns: string[];
-  rows: string[][];
-};
 type Protocol = {
   id: string;
   title: string;
@@ -70,7 +65,6 @@ type Protocol = {
   duration: string;
   steps: ProtocolStep[];
   notes: string[];
-  noteTable?: ProtocolNoteTable | null;
 };
 type ProtocolStep = { title: string; detail: string; time: string; calculatorIds?: string[] };
 type Sample = {
@@ -154,12 +148,11 @@ function UserAvatar({ name }: { name?: string | null }) {
   return <span className="avatar">{initials || "LV"}</span>;
 }
 
-type ProtocolRecord = { id: number; title: string; category: string; tag: string; status: Protocol["status"]; version: string; updatedAt: Date | string; owner: string; summary: string; duration: string; steps: unknown; notes: unknown; noteTable?: unknown };
+type ProtocolRecord = { id: number; title: string; category: string; tag: string; status: Protocol["status"]; version: string; updatedAt: Date | string; owner: string; summary: string; duration: string; steps: unknown; notes: unknown };
 type SampleRecord = { id: number; code: string; name: string; groupName: string; status: string; updatedAt: Date | string; description: string; properties: unknown; theory: string };
 
 function toProtocol(record: ProtocolRecord): Protocol {
-  const noteTable = record.noteTable && typeof record.noteTable === "object" && !Array.isArray(record.noteTable) ? record.noteTable as ProtocolNoteTable : null;
-  return { id: String(record.id), title: record.title, category: record.category, tag: record.tag, status: record.status, version: record.version, updatedAt: new Date(record.updatedAt).toLocaleDateString("vi-VN"), owner: record.owner, summary: record.summary, duration: record.duration, steps: Array.isArray(record.steps) ? record.steps as Protocol["steps"] : [], notes: Array.isArray(record.notes) ? record.notes as string[] : [], noteTable };
+  return { id: String(record.id), title: record.title, category: record.category, tag: record.tag, status: record.status, version: record.version, updatedAt: new Date(record.updatedAt).toLocaleDateString("vi-VN"), owner: record.owner, summary: record.summary, duration: record.duration, steps: Array.isArray(record.steps) ? record.steps as Protocol["steps"] : [], notes: Array.isArray(record.notes) ? record.notes as string[] : [] };
 }
 
 function protocolCategory(value: string): ProtocolCategory {
@@ -412,7 +405,7 @@ function ProtocolDetail({ protocol, calculators, onUseCalculator, onAttachCalcul
   const [attachedToolId, setAttachedToolId] = useState<string | null>(null);
   const [attachedStepTitle, setAttachedStepTitle] = useState("");
   const attach = (id: string, stepTitle: string) => { setAttachedToolId(id); setAttachedStepTitle(stepTitle); onAttachCalculator(id); };
-  return <><button className="back-link" onClick={onBack}><ArrowLeft size={15} /> Tất cả quy trình</button><div className="detail-header"><div><span className="protocol-tag">{protocol.tag}</span><h1>{protocol.title}</h1><p>{protocol.summary}</p><div className="detail-meta"><span className={`status-pill ${protocol.status === "Đã duyệt" ? "approved" : "draft"}`}>{protocol.status}</span><span>Version {protocol.version}</span><span>Updated {protocol.updatedAt}</span><span>Owner {protocol.owner}</span></div></div><div className="detail-actions">{canEdit && <Button variant="outline" onClick={onEdit}><FilePenLine size={15} /> Chỉnh sửa</Button>}{canDelete && <button className="icon-button danger" onClick={() => onDelete(protocol.id)}><Trash2 size={16} /></button>}</div></div><div className="detail-layout"><section className="content-panel steps-panel"><div className="panel-heading"><div><span className="panel-index">RUNBOOK / SEQUENCE</span><h2>Trình tự thực hiện</h2></div><span className="duration-chip"><Clock3 size={14} /> {protocol.duration}</span></div><div className="step-list">{protocol.steps.map((step, index) => <div className="step-item" key={step.title}><div className="step-marker"><span>0{index + 1}</span></div><div className="step-content"><div className="step-heading"><h3>{step.title}</h3><span>{step.time}</span></div><p>{step.detail}</p>{step.calculatorIds?.length ? <div className="step-linked-tools"><small>CÔNG CỤ LIÊN KẾT</small>{step.calculatorIds.map(id => { const tool = calculators.find(item => item.id === id); return tool ? <button type="button" key={id} onClick={() => attach(id, step.title)}><Calculator size={13} />{tool.name}<ChevronRight size={13} /></button> : null; })}</div> : null}</div></div>)}</div></section>{attachedToolId ? <AttachedCalculatorPanel tool={calculators.find(item => item.id === attachedToolId)} stepTitle={attachedStepTitle} calculator={renderCalculator(attachedToolId)} notes={protocol.notes} /> : <aside className="detail-side"><div className="content-panel note-panel"><div className="panel-index">CHECK BEFORE RUN</div><h3>Lưu ý quan trọng</h3><ul>{protocol.notes.map(note => <li key={note}>{note}</li>)}</ul>{protocol.noteTable && <div className="protocol-note-table-wrap"><h4>{protocol.noteTable.title}</h4><div className="protocol-note-table-scroll"><table className="protocol-note-table"><thead><tr>{protocol.noteTable.columns.map(column => <th key={column}>{column}</th>)}</tr></thead><tbody>{protocol.noteTable.rows.map((row, index) => <tr key={`${row[0]}-${index}`}>{row.map((cell, cellIndex) => <td key={`${cell}-${cellIndex}`}>{cell}</td>)}</tr>)}</tbody></table></div></div>}</div></aside>}</div></>;
+  return <><button className="back-link" onClick={onBack}><ArrowLeft size={15} /> Tất cả quy trình</button><div className="detail-header"><div><span className="protocol-tag">{protocol.tag}</span><h1>{protocol.title}</h1><p>{protocol.summary}</p><div className="detail-meta"><span className={`status-pill ${protocol.status === "Đã duyệt" ? "approved" : "draft"}`}>{protocol.status}</span><span>Version {protocol.version}</span><span>Updated {protocol.updatedAt}</span><span>Owner {protocol.owner}</span></div></div><div className="detail-actions">{canEdit && <Button variant="outline" onClick={onEdit}><FilePenLine size={15} /> Chỉnh sửa</Button>}{canDelete && <button className="icon-button danger" onClick={() => onDelete(protocol.id)}><Trash2 size={16} /></button>}</div></div><div className="detail-layout"><section className="content-panel steps-panel"><div className="panel-heading"><div><span className="panel-index">RUNBOOK / SEQUENCE</span><h2>Trình tự thực hiện</h2></div><span className="duration-chip"><Clock3 size={14} /> {protocol.duration}</span></div><div className="step-list">{protocol.steps.map((step, index) => <div className="step-item" key={step.title}><div className="step-marker"><span>0{index + 1}</span></div><div className="step-content"><div className="step-heading"><h3>{step.title}</h3><span>{step.time}</span></div><p>{step.detail}</p>{step.calculatorIds?.length ? <div className="step-linked-tools"><small>CÔNG CỤ LIÊN KẾT</small>{step.calculatorIds.map(id => { const tool = calculators.find(item => item.id === id); return tool ? <button type="button" key={id} onClick={() => attach(id, step.title)}><Calculator size={13} />{tool.name}<ChevronRight size={13} /></button> : null; })}</div> : null}</div></div>)}</div></section>{attachedToolId ? <AttachedCalculatorPanel tool={calculators.find(item => item.id === attachedToolId)} stepTitle={attachedStepTitle} calculator={renderCalculator(attachedToolId)} notes={protocol.notes} /> : <aside className="detail-side"><div className="content-panel note-panel"><div className="panel-index">CHECK BEFORE RUN</div><h3>Lưu ý quan trọng</h3><ul>{protocol.notes.map(note => <li key={note}>{note}</li>)}</ul></div></aside>}</div></>;
 }
 
 function AttachedCalculatorPanel({ tool, stepTitle, calculator, notes }: { tool?: CalculatorDefinition; stepTitle: string; calculator: ReactNode; notes: string[] }) {
