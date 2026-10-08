@@ -11,6 +11,7 @@ let _db: ReturnType<typeof drizzle> | null = null;
 let experimentLogsTableReady: Promise<void> | null = null;
 let supporterIdentityReady: Promise<void> | null = null;
 let pendingEditColumnsReady: Promise<void> | null = null;
+let labSeedReady: Promise<void> | null = null;
 
 const SUPPORTER_USERNAME = "supporter";
 const SUPPORTER_NAME = "website supporter";
@@ -977,36 +978,74 @@ async function ensureZymographyGelTable(db: NonNullable<Awaited<ReturnType<typeo
   await zymographyGelTableReady;
 }
 
+const LAB_CONTENT_BOOTSTRAP_SEED_KEY = "lab-content-bootstrap-v1";
+
+class ContentLibraryIntegrityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ContentLibraryIntegrityError";
+  }
+}
+
+function affectedRowsFromSqlResult(result: unknown) {
+  return Number(((result as [Record<string, unknown>] | undefined)?.[0]?.affectedRows ?? 0));
+}
+
 export async function ensureLabSeed() {
   const db = await getDb();
-  if (!db) return;
-  const [existingUser, existingProtocol, existingSample, existingCalculator, existingRun] = await Promise.all([
-    db.select({ id: users.id }).from(users).limit(1),
-    db.select({ id: protocols.id }).from(protocols).limit(1),
-    db.select({ id: samples.id }).from(samples).limit(1),
-    db.select({ id: calculators.id }).from(calculators).limit(1),
-    db.select({ id: experimentRuns.id }).from(experimentRuns).limit(1),
-  ]);
-  // Seed only a brand-new installation. Once an account exists, deleting content must never
-  // be interpreted as an empty database and must never recreate or overwrite user data.
-  if (existingUser.length === 0 && existingProtocol.length === 0 && existingSample.length === 0 && existingCalculator.length === 0 && existingRun.length === 0) {
-    await db.insert(protocols).values(seedProtocols);
-    await db.insert(samples).values(seedSamples);
-    await db.insert(calculators).values(seedCalculators);
-    await db.insert(experimentRuns).values(seedRuns);
+  if (!db) throw new Error("Database is not available");
+  if (!labSeedReady) {
+    labSeedReady = (async () => {
+      await db.execute(sql`CREATE TABLE IF NOT EXISTS \`contentSeedMarkers\` (\`seedKey\` varchar(160) NOT NULL PRIMARY KEY, \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+      await db.transaction(async tx => {
+        // Claim the bootstrap marker first. The unique primary key makes concurrent deployments
+        // wait for the first transaction to commit; a failed seed rolls the marker back.
+        const markerClaim = await tx.execute(sql`INSERT IGNORE INTO \`contentSeedMarkers\` (\`seedKey\`) VALUES (${LAB_CONTENT_BOOTSTRAP_SEED_KEY})`);
+        if (affectedRowsFromSqlResult(markerClaim) === 0) return;
+
+        const [existingUser, existingProtocol, existingSample, existingCalculator, existingRun] = await Promise.all([
+          tx.select({ id: users.id }).from(users).limit(1),
+          tx.select({ id: protocols.id }).from(protocols).limit(1),
+          tx.select({ id: samples.id }).from(samples).limit(1),
+          tx.select({ id: calculators.id }).from(calculators).limit(1),
+          tx.select({ id: experimentRuns.id }).from(experimentRuns).limit(1),
+        ]);
+        const hasExistingContent = [existingProtocol, existingSample, existingCalculator, existingRun].some(rows => rows.length > 0);
+
+        if (hasExistingContent) {
+          if (existingProtocol.length === 0) {
+            throw new ContentLibraryIntegrityError("Protocol library is incomplete; automatic recovery is blocked to preserve deliberate deletions.");
+          }
+          // Adopt an existing library without touching any content or user edits.
+          return;
+        }
+        if (existingUser.length > 0) {
+          // Never infer that an intentional deletion is a request to restore defaults.
+          throw new ContentLibraryIntegrityError("Content tables are empty while accounts exist; automatic reseeding is blocked.");
+        }
+
+        await tx.insert(protocols).values(seedProtocols);
+        await tx.insert(samples).values(seedSamples);
+        await tx.insert(calculators).values(seedCalculators);
+        await tx.insert(experimentRuns).values(seedRuns);
+      });
+    })().catch(error => {
+      labSeedReady = null;
+      throw error;
+    });
   }
+  await labSeedReady;
 }
 
 export async function getLabContent() {
   const db = await getDb();
-  if (!db) return { protocols: [], samples: [], calculators: [], runs: [] };
+  if (!db) throw new Error("Database is not available");
+  // Bootstrap failure is fatal to this request so the UI shows a retryable error, rather than
+  // accepting an empty response that looks like deleted content.
   await ensureLabSeed();
-  await ensureAdditionalProtocolSeeds(db);
-  await ensureAdditionalStainingProtocolSeeds(db);
-  await ensureEvaluationProtocolSeeds(db);
-  await ensureAdditionalCalculatorSeeds(db);
-  await ensureBcaCalculatorSeed(db);
-  await ensureZymographyGelTable(db);
+  // Incremental default seeds are deliberately not run during reads. Adding, deleting, and
+  // approving content are user actions, not startup side effects; future defaults require an
+  // explicit migration or recovery action.
   const [protocolRows, sampleRows, calculatorRows, runRows] = await Promise.all([
     db.select({ id: protocols.id, slug: protocols.slug, title: protocols.title, category: protocols.category, tag: protocols.tag, status: protocols.status, version: protocols.version, updatedAt: protocols.updatedAt, owner: protocols.owner, summary: protocols.summary, duration: protocols.duration, steps: protocols.steps, notes: protocols.notes }).from(protocols).orderBy(asc(protocols.id)),
     db.select().from(samples).orderBy(asc(samples.id)),
