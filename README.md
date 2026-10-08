@@ -13,12 +13,6 @@ Website tra cứu và biên soạn quy trình, tài liệu mẫu và công cụ 
 
 `server/_core/publicConfig.ts` chỉ công bố các giá trị runtime dành cho frontend; không đưa secrets vào bundle. Khi chạy trong Webdev, cấu hình project được quản lý qua `webdev.config`.
 
-## Xem mật khẩu tài khoản
-
-- Đăng nhập vẫn xác thực bằng scrypt hash. Để đáp ứng tính năng xem theo quyền, mật khẩu được tạo/đặt lại sau migration `0010_password_vault` còn có bản mã AES-256-GCM trong `users.passwordVault`; API danh sách không trả bản mã hoặc hash.
-- Cấu hình `REBIOMED_PASSWORD_VAULT_KEY` bằng secret bảo vệ trước khi đăng ký/đặt lại tài khoản. Ứng dụng dùng **duy nhất mã đã lưu** và dẫn xuất khóa AES-256 ổn định bằng SHA-256; dùng cùng mã cho mọi môi trường dùng chung database. Không commit, log hoặc đưa mã vào `VITE_*`; không đổi mã khi chưa có kế hoạch giải mã và mã hóa lại bản mã cũ.
-- Áp dụng `pnpm db:migrate` và kiểm tra cột mới **trước khi chạy phiên bản ứng dụng mới**. Mật khẩu chỉ có hash từ trước không thể khôi phục; Admin cần đặt lại mật khẩu đó để có thể xem bản mới. Việc đặt lại thay đổi mật khẩu dùng để đăng nhập.
-- Endpoint xem chỉ mở cho Admin có xác thực lại bằng mật khẩu riêng: Admin xem User và chính mình; chỉ tài khoản được bảo vệ theo policy mới xem Admin khác. Không có endpoint liệt kê mật khẩu hàng loạt; giao diện tự ẩn mật khẩu sau 30 giây.
 
 ## Chạy độc lập trong máy chủ nội bộ
 
