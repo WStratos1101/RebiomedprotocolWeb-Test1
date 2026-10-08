@@ -67,7 +67,7 @@ export function ChemicalMixingView({ initialTab = "chemicals", isAdmin = false, 
   const updateMutation = trpc.chemicals.update.useMutation({ onSuccess: async () => { await utils.chemicals.list.invalidate(); setEditorOpen(false); toast.success("Đã cập nhật cách pha."); }, onError: error => toast.error(error.message) });
   const deleteMutation = trpc.chemicals.delete.useMutation({ onSuccess: async () => { await utils.chemicals.list.invalidate(); setEditorOpen(false); toast.success("Đã xoá bản nháp/cách pha."); }, onError: error => toast.error(error.message) });
   const approveMutation = trpc.chemicals.approve.useMutation({ onSuccess: async () => { await utils.chemicals.list.invalidate(); toast.success("Đã duyệt cách pha hoá chất."); }, onError: error => toast.error(error.message) });
-  const recipes = (recipesQuery.data?.length ? recipesQuery.data : seedChemicalRecipes) as StoredChemicalRecipe[];
+  const recipes = ((recipesQuery.data?.length ? recipesQuery.data : seedChemicalRecipes) as StoredChemicalRecipe[]).filter(recipe => recipe.group !== "Dung dịch nhuộm ICC");
   const selected = recipes.find(recipe => recipe.id === selectedId) ?? recipes[0];
 
   useEffect(() => setTab(initialTab), [initialTab]);
@@ -93,7 +93,7 @@ export function ChemicalMixingView({ initialTab = "chemicals", isAdmin = false, 
     setEditorOpen(false);
   };
   const openCreate = () => { setEditingId(null); setDraft(newRecipeDraft()); setEditorOpen(true); setTab("chemicals"); };
-  const canManage = (recipe: StoredChemicalRecipe) => isAdmin || recipe.status === "Bản nháp";
+  const canManage = (_recipe: StoredChemicalRecipe) => isAdmin;
   const openEdit = (recipe: StoredChemicalRecipe) => { if (!canManage(recipe)) return toast.error("Chỉ Admin được chỉnh sửa cách pha đã duyệt."); setEditingId(recipe.dbId ?? null); setDraft(recipeToDraft(recipe)); setEditorOpen(true); setTab("chemicals"); };
   const deleteRecipe = (recipe: StoredChemicalRecipe) => { if (!recipe.dbId) return toast.error("Bản mẫu không thể xoá."); if (!canManage(recipe)) return toast.error("Chỉ Admin được xoá cách pha đã duyệt."); if (window.confirm(`Xoá cách pha ${recipe.name}?`) && window.confirm("Xác nhận lần cuối: thao tác này không thể hoàn tác.")) deleteMutation.mutate({ id: recipe.dbId }); };
   const approveRecipe = (recipe: StoredChemicalRecipe) => { if (!isAdmin || !recipe.dbId) return; if (window.confirm(`Duyệt cách pha ${recipe.name}?`)) approveMutation.mutate({ id: recipe.dbId }); };

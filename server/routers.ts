@@ -266,7 +266,7 @@ export const appRouter = router({
       ingredients: z.array(z.object({ name: z.string().trim().min(1).max(255), quantity: z.number().nonnegative().optional(), unit: z.string().max(32).optional(), stockValue: z.number().nonnegative().optional(), stockUnit: z.string().max(32).optional(), form: z.string().trim().min(1).max(64), note: z.string().max(1000).optional(), finalTopUp: z.boolean().optional() })).min(1).max(100),
       method: z.string().trim().min(1).max(20000),
     })).mutation(async ({ input }) => { await createChemicalRecipe(input); return { success: true as const }; }),
-    update: publicProcedure.input(z.object({
+    update: adminProcedure.input(z.object({
       id: z.number().int().positive(),
       name: z.string().trim().min(1).max(255),
       group: z.string().trim().min(1).max(120),
@@ -277,7 +277,7 @@ export const appRouter = router({
       ingredients: z.array(z.object({ name: z.string().trim().min(1).max(255), quantity: z.number().nonnegative().optional(), unit: z.string().max(32).optional(), stockValue: z.number().nonnegative().optional(), stockUnit: z.string().max(32).optional(), form: z.string().trim().min(1).max(64), note: z.string().max(1000).optional(), finalTopUp: z.boolean().optional() })).min(1).max(100),
       method: z.string().trim().min(1).max(20000),
     })).mutation(async ({ input, ctx }) => { const current = await getChemicalRecipeById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy cách pha hoá chất." }); if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được chỉnh sửa cách pha đã duyệt." }); const { id, ...recipe } = input; await updateChemicalRecipe(id, recipe); return { success: true as const }; }),
-    delete: publicProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { const current = await getChemicalRecipeById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy cách pha hoá chất." }); if (current.status !== "Bản nháp" && !isAdminLikeRole(ctx.user?.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Chỉ Admin được xoá cách pha đã duyệt." }); await deleteChemicalRecipeById(input.id); return { success: true as const }; }),
+    delete: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { const current = await getChemicalRecipeById(input.id); if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Không tìm thấy cách pha hoá chất." }); await deleteChemicalRecipeById(input.id); return { success: true as const }; }),
     approve: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { await setChemicalRecipeStatus(input.id, "Đã duyệt"); return { success: true as const }; }),
   }),
 
