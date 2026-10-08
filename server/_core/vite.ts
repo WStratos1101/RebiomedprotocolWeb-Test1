@@ -3,10 +3,13 @@ import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
 import path from "path";
-import { createServer as createViteServer } from "vite";
-import viteConfig from "../../vite.config";
-
 export async function setupVite(app: Express, server: Server) {
+  const [{ createServer: createViteServer }, { default: react }, { default: tailwindcss }] = await Promise.all([
+    import("vite"),
+    import("@vitejs/plugin-react"),
+    import("@tailwindcss/vite"),
+  ]);
+  const projectRoot = path.resolve(import.meta.dirname, "../..");
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -14,7 +17,16 @@ export async function setupVite(app: Express, server: Server) {
   };
 
   const vite = await createViteServer({
-    ...viteConfig,
+    root: path.resolve(projectRoot, "client"),
+    base: process.env.GITHUB_PAGES_BASE ?? "/",
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        "@": path.resolve(projectRoot, "client", "src"),
+        "@shared": path.resolve(projectRoot, "shared"),
+        "@assets": path.resolve(projectRoot, "attached_assets"),
+      },
+    },
     configFile: false,
     server: serverOptions,
     appType: "custom",
