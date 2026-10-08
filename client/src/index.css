@@ -197,3 +197,21 @@
 .special-tool-form .seeding-grid{margin-top:0}
 .calculator-special-layout.embedded{grid-template-columns:minmax(0,1fr)}
 @media(max-width:760px){.calculator-special-layout{grid-template-columns:minmax(0,1fr)}}
+
+/* Choice cards for calculator units and calculation modes. */
+.choice-field,.unit-choice-field{display:grid;gap:8px;margin-top:16px;color:#6f7b74;font:10px "IBM Plex Mono",monospace}
+.choice-options{display:flex;flex-wrap:wrap;gap:7px}
+.choice-options button{min-height:36px;padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--white);color:var(--muted);font:600 11px "Be Vietnam Pro",sans-serif;transition:.15s ease}
+.choice-options button:hover{border-color:#9fc5bd;color:var(--teal);background:#f2f8f5}
+.choice-options button.active{border-color:var(--teal);background:var(--teal-light);color:var(--teal);box-shadow:0 0 0 1px rgba(13,92,99,.08);font-weight:700}
+.choice-options-compact{margin-top:7px}
+.choice-options-compact button{min-width:44px;min-height:30px;padding:5px 9px;font-size:10px}
+.unit-choice-field{margin-top:0;font-family:"Be Vietnam Pro",sans-serif;font-weight:650}
+.unit-choice-field>span,.choice-field>span{color:#59665f;font-size:11px;font-weight:650}
+.unit-converter-grid .unit-choice-field{align-content:start}
+.result-toggle{align-items:stretch;flex-wrap:wrap}
+.result-toggle>span{align-self:center;min-width:100%;margin-right:0}
+.result-toggle>button{min-height:36px;padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--white);color:var(--muted);font:600 11px "Be Vietnam Pro",sans-serif}
+.result-toggle>button:hover{border-color:#9fc5bd;color:var(--teal);background:#f2f8f5}
+.result-toggle>button.active{border-color:var(--teal);background:var(--teal-light);color:var(--teal);font-weight:700}
+@media(max-width:560px){.choice-options button,.result-toggle>button{flex:1 1 auto}.choice-options-compact button{flex:0 0 auto}}
