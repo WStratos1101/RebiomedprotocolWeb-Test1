@@ -34,11 +34,11 @@ const number = (value: string) => {
 };
 
 function VolumeInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return <label className="field-label icc-volume-field">V tổng muốn pha<Input value={value} onChange={event => onChange(event.target.value)} inputMode="decimal" placeholder="Ví dụ: 1500" /><span>µL</span></label>;
+  return <label className="field-label icc-volume-field">V tổng muốn pha<Input value={value} onChange={event => onChange(event.target.value)} inputMode="decimal" placeholder="Ví dụ: 1500" /><span>uL</span></label>;
 }
 
 function ResultTable({ rows, total }: { rows: IccMixRow[] | null; total: number | null }) {
-  return <div className="chemical-table-wrap"><table className="chemical-table icc-table"><thead><tr><th>Thành phần</th><th>Thể tích (µL)</th><th>Ghi chú</th></tr></thead><tbody>{rows?.map(row => <tr key={row.name}><td><strong>{row.name}</strong></td><td className="chemical-amount">{format(row.volume)}</td><td>{row.note}</td></tr>)}<tr><td><strong>Tổng</strong></td><td className="chemical-amount"><strong>{total === null ? "—" : format(total)}</strong></td><td>Đơn vị dùng chung: µL</td></tr></tbody></table></div>;
+  return <div className="chemical-table-wrap"><table className="chemical-table icc-table"><thead><tr><th>Thành phần</th><th>Thể tích (uL)</th><th>Ghi chú</th></tr></thead><tbody>{rows?.map(row => <tr key={row.name}><td><strong>{row.name}</strong></td><td className="chemical-amount">{format(row.volume)}</td><td>{row.note}</td></tr>)}<tr><td><strong>Tổng</strong></td><td className="chemical-amount"><strong>{total === null ? "—" : format(total)}</strong></td><td>Đơn vị dùng chung: uL</td></tr></tbody></table></div>;
 }
 
 export function IccStainingCalculator() {
@@ -59,7 +59,7 @@ export function IccStainingCalculator() {
   const active = tabs.find(tab => tab.id === activeTab) ?? tabs[0];
 
   return <section className="icc-staining">
-    <div className="content-panel cdna-hero"><div><span className="panel-index">CHEMISTRY WORKBENCH / ICC STAINING</span><h2>Pha hoá chất nhuộm ICC</h2><p>Tách thành 5 mục pha riêng. Mỗi mục chỉ cần nhập V tổng muốn pha; toàn bộ thể tích đều dùng đơn vị µL.</p></div><div className="cdna-kit-badge"><FlaskConical size={20} /><span><strong>ICC staining</strong><small>Đơn vị chung · µL</small></span></div></div>
+    <div className="content-panel cdna-hero"><div><span className="panel-index">CHEMISTRY WORKBENCH / ICC STAINING</span><h2>Pha hoá chất nhuộm ICC</h2><p>Tách thành 5 mục pha riêng. Mỗi mục chỉ cần nhập V tổng muốn pha; toàn bộ thể tích đều dùng đơn vị uL.</p></div><div className="cdna-kit-badge"><FlaskConical size={20} /><span><strong>ICC staining</strong><small>Đơn vị chung · uL</small></span></div></div>
     <nav className="icc-subtabs" role="tablist" aria-label="Các mục pha nhuộm ICC">{tabs.map(tab => <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</nav>
     <section className="content-panel icc-panel"><div className="panel-heading"><div><span className="panel-index">{active.eyebrow}</span><h3>{active.label}</h3><p>Nhập một giá trị V tổng để nhận ngay thể tích từng thành phần.</p></div><Button variant="outline" onClick={reset}><RotateCcw size={14} /> Đặt lại</Button></div>
       {activeTab === "primary" && <div className="icc-primary-controls"><label className="field-label icc-select-field">Kháng thể sơ cấp<select value={selectedAntibody} onChange={event => setSelectedAntibody(event.target.value)}>{primaryAntibodies.map(item => <option key={item.name} value={item.name}>{item.name} · {item.icc}</option>)}</select><span>Chọn tỉ lệ kháng thể cần dùng</span></label><VolumeInput value={volumeByTab.primary} onChange={value => setVolumeByTab(current => ({ ...current, primary: value }))} /></div>}

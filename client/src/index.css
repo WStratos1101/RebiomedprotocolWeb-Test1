@@ -236,3 +236,6 @@
   .dilution-target-tabs button{min-width:0;white-space:normal;overflow-wrap:anywhere}
   .chemical-unit-choice .choice-options{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+/* Calculator controls: keep dilution unit choices compact without hiding the active mode. */
+.dilution-unit-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 10px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#f7faf6;color:var(--muted);font-size:11px}.dilution-unit-toolbar strong{font-weight:600;color:var(--ink)}.dilution-unit-toolbar .text-button{margin:0;padding:2px 0;font-size:10px}
