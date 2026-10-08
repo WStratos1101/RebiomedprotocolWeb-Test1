@@ -38,5 +38,5 @@
 .custom-answer { margin-top: 15px; padding: 15px; border-radius: 6px; background: var(--teal-light); }
 .custom-answer strong { margin-left: 10px; color: var(--teal); font: 18px "IBM Plex Mono", monospace; }
 .formula-unit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr)); gap: 12px; }
-.custom-fields small { color: var(--muted); font: 10px "DM Sans",sans-serif; }
+.custom-fields small { color: var(--muted); font: 10px "Be Vietnam Pro",sans-serif; }
 .custom-unit-note { margin-top: 15px; font-size: 10px; }
