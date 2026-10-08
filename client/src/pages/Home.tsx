@@ -557,50 +557,23 @@ function UnitConverter() {
     volume: { label: "Thể tích", units: ["L", "mL", "µL"] },
     mass: { label: "Khối lượng", units: ["g", "mg", "µg", "ng"] },
     amount: { label: "Lượng chất", units: ["mol", "mmol", "µmol"] },
-    cells: { label: "Tế bào", units: ["cell", "cell/mL", "cell/giếng", "cell/flask", "cell/cm²"] },
     pressure: { label: "Áp suất", units: ["Pa", "kPa", "atm", "mmHg"] },
     temperature: { label: "Nhiệt độ", units: ["°C", "°F"] },
   } as const;
-  const wellSpecs = {
-    "96-well": { label: "Giếng 96-well", area: 0.32, defaultVolumeMl: 0.15, range: "0,10–0,20 mL" },
-    "24-well": { label: "Giếng 24-well", area: 1.9, defaultVolumeMl: 0.5, range: "0,30–0,60 mL" },
-    "12-well": { label: "Giếng 12-well", area: 3.8, defaultVolumeMl: 1, range: "0,75–1,15 mL" },
-    "6-well": { label: "Giếng 6-well", area: 9.6, defaultVolumeMl: 2, range: "1–3 mL" },
-    T25: { label: "Flask T25", area: 25, defaultVolumeMl: 5, range: "Tham khảo 5 mL" },
-    T75: { label: "Flask T75", area: 75, defaultVolumeMl: 15, range: "Tham khảo 15 mL" },
-  } as const;
-  type WellKey = keyof typeof wellSpecs;
   const [group, setGroup] = useState<keyof typeof groups>("volume");
   const [value, setValue] = useState("1");
   const [from, setFrom] = useState("L");
   const [to, setTo] = useState("mL");
-  const [well, setWell] = useState<WellKey>("96-well");
-  const [wellVolume, setWellVolume] = useState("");
   const active = groups[group];
-  const isCellAreaConversion = group === "cells" && (from === "cell/cm²" || to === "cell/cm²");
-  const wellData = wellSpecs[well];
-  const effectiveWellVolume = parseLocaleNumber(wellVolume);
-  const volumeMl = Number.isFinite(effectiveWellVolume) && effectiveWellVolume > 0 ? effectiveWellVolume : wellData.defaultVolumeMl;
   const convert = () => {
     const number = parseLocaleNumber(value);
     if (!Number.isFinite(number)) return null;
     if (group === "temperature") return from === to ? number : from === "°C" ? number * 9 / 5 + 32 : (number - 32) * 5 / 9;
-    if (group === "cells" && from !== to) {
-      if (from === "cell/cm²") {
-        if (to === "cell/mL") return number * wellData.area / volumeMl;
-        if (to === "cell/giếng" || to === "cell/flask") return number * wellData.area;
-      }
-      if (to === "cell/cm²") {
-        if (from === "cell/mL") return number * volumeMl / wellData.area;
-        if (from === "cell/giếng" || from === "cell/flask") return number / wellData.area;
-      }
-      return number;
-    }
-    const factors: Record<string, number> = group === "volume" ? { L: 1, mL: 1e-3, "µL": 1e-6 } : group === "mass" ? { g: 1, mg: 1e-3, "µg": 1e-6, ng: 1e-9 } : group === "amount" ? { mol: 1, mmol: 1e-3, "µmol": 1e-6 } : group === "pressure" ? { Pa: 1, kPa: 1e3, atm: 101325, mmHg: 133.322 } : { cell: 1, "cell/mL": 1, "cell/giếng": 1, "cell/flask": 1, "cell/cm²": 1 };
+    const factors: Record<string, number> = group === "volume" ? { L: 1, mL: 1e-3, "µL": 1e-6 } : group === "mass" ? { g: 1, mg: 1e-3, "µg": 1e-6, ng: 1e-9 } : group === "amount" ? { mol: 1, mmol: 1e-3, "µmol": 1e-6 } : { Pa: 1, kPa: 1e3, atm: 101325, mmHg: 133.322 };
     return number * (factors[from] ?? 1) / (factors[to] ?? 1);
   };
   const result = convert();
-  return <section className="content-panel unit-converter-panel"><div className="panel-heading"><div><span className="panel-index">UNIT CONVERTER</span><h2>Chuyển đổi đơn vị</h2></div><Calculator size={20} /></div><div className="unit-category-tabs">{(Object.keys(groups) as Array<keyof typeof groups>).map(key => <button key={key} className={group === key ? "active" : ""} onClick={() => { setGroup(key); setFrom(groups[key].units[0]); setTo(groups[key].units[1] ?? groups[key].units[0]); }}>{groups[key].label}</button>)}</div><div className="unit-converter-grid"><label className="field-label">Giá trị<Input value={value} onChange={event => setValue(event.target.value)} inputMode="decimal" placeholder="Nhập số" /></label><label className="field-label">Từ<select value={from} onChange={event => setFrom(event.target.value)}>{active.units.map(unit => <option key={unit}>{unit}</option>)}</select></label><label className="field-label">Sang<select value={to} onChange={event => setTo(event.target.value)}>{active.units.map(unit => <option key={unit}>{unit}</option>)}</select></label></div>{group === "cells" && <div className="cell-area-converter"><label className="field-label">Giếng / flask nuôi<select value={well} onChange={event => setWell(event.target.value as WellKey)}>{Object.entries(wellSpecs).map(([key, spec]) => <option key={key} value={key}>{spec.label} · {spec.area} cm²</option>)}</select></label>{isCellAreaConversion && <label className="field-label">Thể tích môi trường / giếng<Input value={wellVolume} onChange={event => setWellVolume(event.target.value)} inputMode="decimal" placeholder={`${wellData.defaultVolumeMl} mL · ${wellData.range}`} /><small>Để trống dùng mặc định {wellData.defaultVolumeMl} mL; diện tích {wellData.area} cm² / đơn vị.</small></label>}</div>}{isCellAreaConversion && <p className="unit-converter-note">Quy đổi dựa trên diện tích bề mặt: số tế bào trên thể tích × thể tích môi trường / diện tích giếng = số tế bào / cm².</p>}<div className="unit-converter-result"><small>KẾT QUẢ</small><strong>{result === null ? "—" : formatNumber(result)} {to}</strong></div>{group === "cells" && !isCellAreaConversion && <p className="unit-converter-note">Khi đổi sang cell/cm², hãy chọn đúng giếng hoặc flask để áp dụng diện tích bề mặt tương ứng.</p>}</section>;
+  return <section className="content-panel unit-converter-panel"><div className="panel-heading"><div><span className="panel-index">UNIT CONVERTER</span><h2>Chuyển đổi đơn vị</h2></div><Calculator size={20} /></div><div className="unit-category-tabs">{(Object.keys(groups) as Array<keyof typeof groups>).map(key => <button key={key} className={group === key ? "active" : ""} onClick={() => { setGroup(key); setFrom(groups[key].units[0]); setTo(groups[key].units[1] ?? groups[key].units[0]); }}>{groups[key].label}</button>)}</div><div className="unit-converter-grid"><label className="field-label">Giá trị<Input value={value} onChange={event => setValue(event.target.value)} inputMode="decimal" placeholder="Nhập số" /></label><label className="field-label">Từ<select value={from} onChange={event => setFrom(event.target.value)}>{active.units.map(unit => <option key={unit}>{unit}</option>)}</select></label><label className="field-label">Sang<select value={to} onChange={event => setTo(event.target.value)}>{active.units.map(unit => <option key={unit}>{unit}</option>)}</select></label></div><div className="unit-converter-result"><small>KẾT QUẢ</small><strong>{result === null ? "—" : formatNumber(result)} {to}</strong></div></section>;
 }
 function CalculatorView({ embedded = false, tools, onDesign, selectedCalc, setSelectedCalc, c1, v1, c2, v2, setC1, setV1, setC2, setV2, dilutionTarget, setDilutionTarget, dilutionConcentrationMode, setDilutionConcentrationMode, dilutionVolumeUnits, setDilutionVolumeUnits, dilutionConcentrationUnits, setDilutionConcentrationUnits, result, runCalculation, recent, clearHistory, deleteCalculation, canCalculate, volumeUnit, setVolumeUnit, cellUnit, setCellUnit, dilutionMode, setDilutionMode, dilutionFactorValue, setDilutionFactorValue, dilutionInitialVolume, setDilutionInitialVolume, dilutionAddedVolume, setDilutionAddedVolume, manualSolutionVolume, setManualSolutionVolume, manualCountedSquares, setManualCountedSquares }: { embedded?: boolean; tools: CalculatorDefinition[]; onDesign: () => void; selectedCalc: string; setSelectedCalc: (id: string) => void; c1: string; v1: string; c2: string; v2: string; setC1: (v: string) => void; setV1: (v: string) => void; setC2: (v: string) => void; setV2: (v: string) => void; dilutionTarget: DilutionTarget; setDilutionTarget: (target: DilutionTarget) => void; dilutionConcentrationMode: "stock" | "percent"; setDilutionConcentrationMode: (mode: "stock" | "percent") => void; dilutionVolumeUnits: Record<"v1" | "v2", VolumeUnit>; setDilutionVolumeUnits: (units: Record<"v1" | "v2", VolumeUnit>) => void; dilutionConcentrationUnits: Record<"c1" | "c2", ConcentrationUnit>; setDilutionConcentrationUnits: (units: Record<"c1" | "c2", ConcentrationUnit>) => void; result: number | null; runCalculation: () => void; recent: string[]; clearHistory: () => void; deleteCalculation: (index: number) => void; canCalculate: boolean; volumeUnit: VolumeUnit; setVolumeUnit: (unit: VolumeUnit) => void; cellUnit: CellUnit; setCellUnit: (unit: CellUnit) => void; dilutionMode: DilutionMode; setDilutionMode: (mode: DilutionMode) => void; dilutionFactorValue: string; setDilutionFactorValue: (value: string) => void; dilutionInitialVolume: string; setDilutionInitialVolume: (value: string) => void; dilutionAddedVolume: string; setDilutionAddedVolume: (value: string) => void; manualSolutionVolume: string; setManualSolutionVolume: (value: string) => void; manualCountedSquares: string; setManualCountedSquares: (value: string) => void }) {
   const activeCalc = tools.find(calc => calc.id === selectedCalc) || tools[0];
