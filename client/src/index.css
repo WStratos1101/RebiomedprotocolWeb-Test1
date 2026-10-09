@@ -253,3 +253,8 @@
 
 /* Data-load errors stay explicit so a transient API failure cannot look like an empty protocol library. */
 .content-load-error{display:flex;align-items:center;gap:13px;margin:0 0 18px;padding:14px 16px;border:1px solid #e7c78c;border-radius:8px;background:#fff9ec;color:#7d5a1f}.content-load-error>svg{flex:0 0 auto}.content-load-error>div{flex:1;min-width:0}.content-load-error strong{display:block;font-size:12px}.content-load-error p{margin:3px 0 0;font-size:11px;line-height:1.45}.content-load-error button{flex:0 0 auto}@media(max-width:760px){.content-load-error{align-items:flex-start;flex-wrap:wrap}.content-load-error button{width:100%}}
+
+
+/* Unit Converter formula banner: compact and lightweight without changing other calculator cards. */
+.compact-formula-card{padding:14px 18px;border-radius:8px}.compact-formula-card .formula-title{margin-top:6px;gap:12px}.compact-formula-card .formula-title h2{margin-bottom:3px;font-size:16px}.compact-formula-card .formula-title p{font-size:10px}.compact-formula-card .formula{font-size:14px;line-height:1.25}
+@media(max-width:560px){.compact-formula-card{padding:12px 15px}.compact-formula-card .formula-title{gap:7px}.compact-formula-card .formula{font-size:13px}}

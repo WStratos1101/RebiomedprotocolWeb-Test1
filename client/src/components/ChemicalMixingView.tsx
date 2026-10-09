@@ -124,12 +124,12 @@ export function ChemicalMixingView({ initialTab = "chemicals", isAdmin = false, 
   if (!selected && !isMasterMix && tab !== "icc") return <div className="empty-state"><Beaker size={24} /><h3>Chưa có công thức pha</h3><p>Hãy tạo cách pha đầu tiên.</p><Button className="primary-cta" onClick={openCreate}><Plus size={15} /> Thêm cách pha</Button></div>;
 
   return <div className="chemical-page">
-    <PageIntro eyebrow="CHEMISTRY WORKBENCH" title={<>Pha <em>hoá chất.</em></>} description="Tính nhanh lượng cần cân/đong theo tổng thể tích và tự biên soạn các cách pha theo từng chất." action={<Button className="primary-cta" onClick={openCreate}><Plus size={15} /> Thêm cách pha</Button>} />
+    <PageIntro eyebrow="CHEMISTRY WORKBENCH" title={<>Pha <em>hoá chất.</em></>} description={tab === "icc" ? "Cách pha các loại hoá chất sử dụng cho quy trình ICC" : "Tính nhanh lượng cần cân/đong theo tổng thể tích và tự biên soạn các cách pha theo từng chất."} action={<Button className="primary-cta" onClick={openCreate}><Plus size={15} /> Thêm cách pha</Button>} />
     <div className="chemical-tabs" role="tablist" aria-label="Pha hoá chất">
       <button className={tab === "chemicals" ? "active" : ""} onClick={() => setTab("chemicals")}><Calculator size={16} /> Hoá chất</button>
-      <button className={tab === "stock" ? "active" : ""} onClick={() => setTab("stock")}><Table2 size={16} /> Hoá chất stock <span>{recipes.length}</span></button>
       <button className={isMasterMix ? "active" : ""} onClick={() => setTab("master-cdna")}><FlaskConical size={16} /> Master Mix <span>2</span></button>
       <button className={tab === "icc" ? "active" : ""} onClick={() => setTab("icc")}><FlaskConical size={16} /> Nhuộm ICC</button>
+      <button className={tab === "stock" ? "active" : ""} onClick={() => setTab("stock")}><Table2 size={16} /> Hoá chất stock <span>{recipes.length}</span></button>
     </div>
     {isMasterMix && <div className="master-mix-subtabs" role="tablist" aria-label="Các bảng Master Mix"><button className={tab === "master-cdna" || tab === "cdna" ? "active" : ""} onClick={() => setTab("master-cdna")}>Master Mix cDNA</button><button className={tab === "master-qdna" || tab === "qdna" ? "active" : ""} onClick={() => setTab("master-qdna")}>Master Mix qDNA</button></div>}
     {recipesQuery.isError && <div className="chemical-warning"><Info size={15} /> Không tải được thư viện đã lưu; đang hiển thị dữ liệu mẫu. Các thay đổi mới sẽ được lưu khi database hoạt động trở lại.</div>}
