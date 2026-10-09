@@ -258,3 +258,11 @@
 /* Unit Converter formula banner: compact and lightweight without changing other calculator cards. */
 .compact-formula-card{padding:14px 18px;border-radius:8px}.compact-formula-card .formula-title{margin-top:6px;gap:12px}.compact-formula-card .formula-title h2{margin-bottom:3px;font-size:16px}.compact-formula-card .formula-title p{font-size:10px}.compact-formula-card .formula{font-size:14px;line-height:1.25}
 @media(max-width:560px){.compact-formula-card{padding:12px 15px}.compact-formula-card .formula-title{gap:7px}.compact-formula-card .formula{font-size:13px}}
+
+
+/* Compact Master Mix actions, registration guidance, and guest account shortcuts. */
+.master-mix-panel-actions .button{flex:0 1 auto;min-height:30px;padding:6px 8px;gap:5px;font-size:10px;line-height:1.2}
+.auth-registration-note{margin:14px 0 0;padding:9px 11px;border-left:2px solid var(--teal);border-radius:5px;background:var(--teal-light);color:#45665f;font-size:10px;line-height:1.45}
+.topbar-auth-actions{display:flex;align-items:center;gap:6px}.topbar-auth-button{padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--muted);font-size:10px;white-space:nowrap}.topbar-auth-button:hover{border-color:#a9c8c2;color:var(--teal);background:var(--teal-light)}.topbar-auth-button.primary{border-color:var(--teal);background:var(--teal);color:white}.topbar-auth-button.primary:hover{background:#094e54}
+@media(max-width:620px){.master-mix-panel-actions .button{flex:0 1 auto;padding:5px 7px;font-size:9px}.topbar-auth-actions{gap:4px}.topbar-auth-button{padding:6px 7px;font-size:9px}}
+@media(max-width:430px){.topbar-auth-button{padding-inline:5px;font-size:8px}.topbar-actions{gap:8px}}
